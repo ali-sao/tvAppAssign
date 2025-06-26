@@ -7,41 +7,42 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { HeroSection } from '../components/hero/HeroSection';
 import { ContentCarousel } from '../components/carousel/ContentCarousel';
 import { theme } from '../constants/theme';
 import { featuredMovie, contentRows } from '../constants/mockData';
-import { Movie, TVShow } from '../types';
+import { Movie, TVShow, RootStackParamList } from '../types';
+
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 export const HomeScreen: React.FC = () => {
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   const [myList, setMyList] = useState<string[]>([]);
   const [focusedContent, setFocusedContent] = useState<Movie | TVShow | null>(null);
 
   const handlePlayPress = useCallback(() => {
-    Alert.alert(
-      'Play Movie',
-      `Playing: ${featuredMovie.title}`,
-      [{ text: 'OK' }]
-    );
-    // Here you would navigate to the video player
-    // navigation.navigate('Player', { 
-    //   videoUrl: featuredMovie.videoUrl, 
-    //   title: featuredMovie.title 
-    // });
-  }, []);
+    if (featuredMovie.videoUrl) {
+      navigation.navigate('Player', {
+        videoUrl: featuredMovie.videoUrl,
+        title: featuredMovie.title,
+      });
+    } else {
+      Alert.alert('Error', 'Video URL not available');
+    }
+  }, [navigation]);
 
   const handleTrailerPress = useCallback(() => {
-    Alert.alert(
-      'Play Trailer',
-      `Playing trailer for: ${featuredMovie.title}`,
-      [{ text: 'OK' }]
-    );
-    // Here you would navigate to the video player with trailer
-    // navigation.navigate('Player', { 
-    //   videoUrl: featuredMovie.trailerUrl, 
-    //   title: `${featuredMovie.title} - Trailer` 
-    // });
-  }, []);
+    if (featuredMovie.trailerUrl) {
+      navigation.navigate('Player', {
+        videoUrl: featuredMovie.trailerUrl,
+        title: `${featuredMovie.title} - Trailer`,
+      });
+    } else {
+      Alert.alert('Error', 'Trailer URL not available');
+    }
+  }, [navigation]);
 
   const handleMyListPress = useCallback(() => {
     const isInList = myList.includes(featuredMovie.id);
@@ -63,20 +64,26 @@ export const HomeScreen: React.FC = () => {
         { 
           text: 'Play', 
           onPress: () => {
-            // Navigate to player or detail screen
-            Alert.alert('Playing', item.title);
+            if (item.videoUrl) {
+              navigation.navigate('Player', {
+                videoUrl: item.videoUrl,
+                title: item.title,
+              });
+            } else {
+              Alert.alert('Error', 'Video URL not available');
+            }
           }
         },
         { 
           text: 'Details', 
           onPress: () => {
-            // Navigate to detail screen
+            // Navigate to detail screen (can be implemented later)
             Alert.alert('Details', `Show details for ${item.title}`);
           }
         }
       ]
     );
-  }, []);
+  }, [navigation]);
 
   const handleContentItemFocus = useCallback((item: Movie | TVShow) => {
     setFocusedContent(item);
