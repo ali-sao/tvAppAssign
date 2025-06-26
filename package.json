@@ -6,7 +6,14 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "android-tv": "expo start --android --tv",
+    "ios-tv": "expo start --ios --tv",
+    "dev": "expo start --clear",
+    "build:android": "expo build:android --type app-bundle",
+    "build:ios": "expo build:ios --type archive",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
     "@react-navigation/native": "^7.1.14",
