@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { HomeScreen } from '../screens/HomeScreen';
+import { VideoPlayerScreen } from '../screens/VideoPlayerScreen';
 import { RootStackParamList } from '../types';
 import { theme } from '../constants/theme';
 
@@ -56,6 +57,13 @@ export const AppNavigator: React.FC = () => {
           component={HomeScreen}
           options={{
             title: 'Home',
+          }}
+        />
+        <Stack.Screen 
+          name="Player" 
+          component={VideoPlayerScreen}
+          options={{
+            title: 'Video Player',
           }}
         />
       </Stack.Navigator>
