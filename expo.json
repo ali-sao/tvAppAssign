@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "ThamaneyahStreamingApp",
-    "slug": "ThamaneyahStreamingApp",
+    "slug": "ThamaneyahStreamingApp", 
     "version": "1.0.0",
     "orientation": "landscape",
     "icon": "./assets/icon.png",
@@ -24,22 +24,9 @@
       "edgeToEdgeEnabled": true,
       "package": "com.thamaneyah.streamingapp"
     },
-    "androidTV": {
-      "icon": "./assets/icon.png",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#000000"
-      },
-      "banner": "./assets/tv-banner.png"
-    },
-    "tvOS": {
-      "icon": "./assets/icon.png",
-      "topShelfImage": "./assets/tv-top-shelf.png",
-      "bundleIdentifier": "com.thamaneyah.streamingapp"
-    },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["@react-native-tvos/config-tv"]
+    "plugins": []
   }
 } 
