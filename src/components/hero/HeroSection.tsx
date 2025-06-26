@@ -12,6 +12,7 @@ import { Image } from 'expo-image';
 import { FocusableButton } from '../common/FocusableButton';
 import { theme, dimensions } from '../../constants/theme';
 import { HeroContentProps, Movie, TVShow } from '../../types';
+import { useDirection } from '../../contexts/DirectionContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -23,6 +24,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
   isInMyList,
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const { isRTL } = useDirection();
 
   const formatRuntime = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
@@ -70,12 +72,26 @@ export const HeroSection: React.FC<HeroContentProps> = ({
         />
 
         {/* Content */}
-        <View style={styles.contentContainer}>
+        <View style={[
+          styles.contentContainer,
+          isRTL && styles.contentContainerRTL
+        ]}>
           {/* Left Side - Content Info */}
-          <View style={styles.leftContent}>
-            <Text style={styles.title}>{content.title}</Text>
+          <View style={[
+            styles.leftContent,
+            isRTL && styles.leftContentRTL
+          ]}>
+            <Text style={[
+              styles.title,
+              isRTL && styles.titleRTL
+            ]}>
+              {content.title}
+            </Text>
             
-            <View style={styles.metaInfo}>
+            <View style={[
+              styles.metaInfo,
+              isRTL && styles.metaInfoRTL
+            ]}>
               <Text style={styles.year}>{content.year}</Text>
               <View style={styles.ratingBadge}>
                 <Text style={styles.rating}>{content.rating}</Text>
@@ -83,11 +99,17 @@ export const HeroSection: React.FC<HeroContentProps> = ({
               <Text style={styles.runtime}>{getContentInfo()}</Text>
             </View>
 
-            <Text style={styles.description} numberOfLines={4}>
+            <Text style={[
+              styles.description,
+              isRTL && styles.descriptionRTL
+            ]} numberOfLines={4}>
               {content.description}
             </Text>
 
-            <View style={styles.castInfo}>
+            <View style={[
+              styles.castInfo,
+              isRTL && styles.castInfoRTL
+            ]}>
               <Text style={styles.castLabel}>Starring: </Text>
               <Text style={styles.castText}>{getCastString()}</Text>
             </View>
@@ -160,10 +182,16 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
     justifyContent: 'space-between',
   },
+  contentContainerRTL: {
+    flexDirection: 'row-reverse',
+  },
   leftContent: {
     flex: 1,
     justifyContent: 'flex-end',
     maxWidth: screenWidth * 0.6,
+  },
+  leftContentRTL: {
+    alignItems: 'flex-end',
   },
   rightContent: {
     justifyContent: 'flex-end',
@@ -179,10 +207,16 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
   },
+  titleRTL: {
+    textAlign: 'right',
+  },
   metaInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: theme.spacing.md,
+  },
+  metaInfoRTL: {
+    flexDirection: 'row-reverse',
   },
   year: {
     fontSize: theme.typography.body.fontSize,
@@ -212,9 +246,15 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
     maxWidth: '90%',
   },
+  descriptionRTL: {
+    textAlign: 'right',
+  },
   castInfo: {
     flexDirection: 'row',
     marginBottom: theme.spacing.xl,
+  },
+  castInfoRTL: {
+    flexDirection: 'row-reverse',
   },
   castLabel: {
     fontSize: theme.typography.body.fontSize,

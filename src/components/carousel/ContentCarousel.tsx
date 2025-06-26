@@ -12,6 +12,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme, focusStyles, dimensions } from '../../constants/theme';
 import { ContentRow, Movie, TVShow } from '../../types';
+import { useDirection } from '../../contexts/DirectionContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -153,6 +154,7 @@ export const ContentCarousel: React.FC<ContentCarouselProps> = ({
 }) => {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const { isRTL } = useDirection();
 
   const handleItemPress = useCallback((item: Movie | TVShow) => {
     onItemPress(item);
@@ -189,7 +191,12 @@ export const ContentCarousel: React.FC<ContentCarouselProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>{contentRow.title}</Text>
+      <Text style={[
+        styles.sectionTitle,
+        isRTL && styles.sectionTitleRTL
+      ]}>
+        {contentRow.title}
+      </Text>
       
       <FlatList
         ref={flatListRef}
@@ -225,6 +232,11 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: theme.spacing.md,
     marginLeft: theme.spacing.xxl,
+  },
+  sectionTitleRTL: {
+    marginLeft: 0,
+    marginRight: theme.spacing.xxl,
+    textAlign: 'right',
   },
   listContainer: {
     paddingHorizontal: theme.spacing.xxl,
