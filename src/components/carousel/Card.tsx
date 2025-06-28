@@ -14,6 +14,7 @@ import { ContentEntity } from '../../types/api';
 interface CardProps {
   item: ContentEntity;
   index: number;
+  carouselIndex: number;
   onPress: () => void;
   onFocus?: () => void;
 }
@@ -21,6 +22,7 @@ interface CardProps {
 export const Card: React.FC<CardProps> = ({ 
   item, 
   index, 
+  carouselIndex,
   onPress, 
   onFocus 
 }) => {
@@ -104,7 +106,7 @@ export const Card: React.FC<CardProps> = ({
           </View>
         </View>
 
-        {/* Item info */}
+        {/* 
         <View style={styles.itemInfo}>
           <Text style={styles.title} numberOfLines={2}>
             {item.title}
@@ -113,6 +115,7 @@ export const Card: React.FC<CardProps> = ({
             {getItemInfo()}
           </Text>
         </View>
+        Item info */}
       </Animated.View>
     </TouchableOpacity>
   );
@@ -121,6 +124,7 @@ export const Card: React.FC<CardProps> = ({
 const styles = StyleSheet.create({
   itemContainer: {
     width: dimensions.carouselItemWidth,
+    paddingVertical: theme.spacing.md,
   },
   itemWrapper: {
     flex: 1,

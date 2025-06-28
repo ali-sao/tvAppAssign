@@ -109,7 +109,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
             <Text style={[
               styles.description,
               isRTL && styles.descriptionRTL
-            ]} numberOfLines={4}>
+            ]} numberOfLines={2} ellipsizeMode="tail">
               {content.description}
             </Text>
 
@@ -126,7 +126,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
               <FocusableButton
                 title="▶ PLAY"
                 variant="primary"
-                size="medium"
+                size="small"
                 onPress={onPlayPress}
                 hasTVPreferredFocus={true}
                 style={styles.playButton}
@@ -135,7 +135,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
               <FocusableButton
                 title="TRAILER"
                 variant="secondary"
-                size="medium"
+                size="small"
                 onPress={onTrailerPress}
                 style={styles.trailerButton}
               />
@@ -149,7 +149,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
               <FocusableButton
                 title={isInMyList ? "✓ ADDED" : "+ ADD"}
                 variant="outline"
-                size="medium"
+                size="small"
                 onPress={onMyListPress}
                 style={styles.myListButton}
               />

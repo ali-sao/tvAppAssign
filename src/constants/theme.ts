@@ -31,7 +31,7 @@ export const theme: AppTheme = {
       fontWeight: 'bold',
     },
     heading: {
-      fontSize: 24,
+      fontSize: 16,
       fontWeight: '600',
     },
     body: {
@@ -58,8 +58,8 @@ export const dimensions = {
   heroHeight: 560,
   posterWidth: 180,
   posterHeight: 270,
-  carouselItemWidth: 133, // Reduced to 2/3 of original (200 * 2/3 = 133)
-  carouselItemHeight: 200, // Reduced to 2/3 of original (300 * 2/3 = 200)
+  carouselItemWidth: 100, // Reduced to 2/3 of original (200 * 2/3 = 133)
+  carouselItemHeight: 150, // Reduced to 2/3 of original (300 * 2/3 = 200)
   buttonHeight: 50,
   buttonWidth: 120,
 }; 

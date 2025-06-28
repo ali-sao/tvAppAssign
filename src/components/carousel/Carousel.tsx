@@ -16,13 +16,15 @@ const { width: screenWidth } = Dimensions.get('window');
 interface CarouselProps {
   title: string;
   items: ContentEntity[];
+  carouselIndex: number;
   onItemPress: (item: ContentEntity) => void;
-  onItemFocus?: (item: ContentEntity) => void;
+  onItemFocus?: (item: ContentEntity, carouselIndex: number, itemIndex: number) => void;
 }
 
 export const Carousel: React.FC<CarouselProps> = ({
   title,
   items,
+  carouselIndex,
   onItemPress,
   onItemFocus,
 }) => {
@@ -36,7 +38,7 @@ export const Carousel: React.FC<CarouselProps> = ({
 
   const handleItemFocus = useCallback((item: ContentEntity, index: number) => {
     setCurrentIndex(index);
-    onItemFocus?.(item);
+    onItemFocus?.(item, carouselIndex, index);
     
     // Auto-scroll to keep focused item visible
     if (flatListRef.current) {
@@ -46,12 +48,13 @@ export const Carousel: React.FC<CarouselProps> = ({
         viewPosition: 0.5,
       });
     }
-  }, [onItemFocus]);
+  }, [onItemFocus, carouselIndex]);
 
   const renderItem = ({ item, index }: { item: ContentEntity; index: number }) => (
     <Card
       item={item}
       index={index}
+      carouselIndex={carouselIndex}
       onPress={() => handleItemPress(item)}
       onFocus={() => handleItemFocus(item, index)}
     />
@@ -98,14 +101,15 @@ export const Carousel: React.FC<CarouselProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: theme.spacing.xl,
+    // marginBottom: theme.spacing.xl,
   },
   sectionTitle: {
     fontSize: theme.typography.heading.fontSize,
     fontWeight: theme.typography.heading.fontWeight as any,
     color: theme.colors.text,
-    marginBottom: theme.spacing.md,
+    height:20,
     marginLeft: theme.spacing.xxl,
+
   },
   sectionTitleRTL: {
     marginLeft: 0,

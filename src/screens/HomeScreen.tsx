@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { isRTL, direction, toggleDirection } = useDirection();
   const [focusedContent, setFocusedContent] = useState<ContentEntity | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // API Hooks
   const homepage = useHomepage();
@@ -105,9 +106,21 @@ export const HomeScreen: React.FC = () => {
     );
   }, []);
 
-  const handleContentItemFocus = useCallback((item: ContentEntity) => {
+  const handleContentItemFocus = useCallback((item: ContentEntity, carouselIndex: number, itemIndex: number) => {
     setFocusedContent(item);
-    console.log('🎯 Hero content changed to:', item.title); // Debug log
+    
+    // Scroll to bring the focused carousel to the very top using precise calculations
+    if (scrollViewRef.current) {
+      const carouselHeight = 150+32 + 20; // 150 height + 16*2 padding + 20 title hieght
+      
+      // Calculate exact scroll position based on carousel index
+      const scrollY = carouselIndex * carouselHeight;
+      
+      scrollViewRef.current.scrollTo({
+        y: scrollY,
+        animated: false,
+      });
+    }
   }, []);
 
   // Menu handlers
@@ -201,15 +214,18 @@ export const HomeScreen: React.FC = () => {
         {/* Content Carousels - Scrollable area */}
         <View style={styles.carouselContainer}>
           <ScrollView 
+            ref={scrollViewRef}
             style={styles.carouselScrollView}
             showsVerticalScrollIndicator={false}
-            bounces={false}
+            bounces={true}
+            scrollEnabled={false}
           >
             <View style={styles.carouselSection}>
               {homepage.data?.trending && homepage.data.trending.length > 0 && (
                 <Carousel
                   title="Trending Now"
                   items={homepage.data.trending}
+                  carouselIndex={0}
                   onItemPress={handleContentItemPress}
                   onItemFocus={handleContentItemFocus}
                 />
@@ -219,6 +235,7 @@ export const HomeScreen: React.FC = () => {
                 <Carousel
                   title="New Releases"
                   items={homepage.data.newReleases}
+                  carouselIndex={1}
                   onItemPress={handleContentItemPress}
                   onItemFocus={handleContentItemFocus}
                 />
@@ -228,14 +245,13 @@ export const HomeScreen: React.FC = () => {
                 <Carousel
                   title="Recommended for You"
                   items={homepage.data.recommended}
+                  carouselIndex={2}
                   onItemPress={handleContentItemPress}
                   onItemFocus={handleContentItemFocus}
                 />
               )}
             </View>
-
-            {/* Bottom padding for better scrolling */}
-            <View style={styles.bottomPadding} />
+            <View style={styles.extraPadding} />
           </ScrollView>
         </View>
       </View>
@@ -263,23 +279,26 @@ const styles = StyleSheet.create({
   heroContainer: {
     height: screenHeight * 0.65, // 65% of screen height
     maxHeight: 700, // Maximum height for very large screens
-    minHeight: 400, // Minimum height for very small screens
   },
   // Carousel Section - Dynamic height (30% of screen height)
   carouselContainer: {
-    height: screenHeight * 0.35, // 35% of screen height
-    maxHeight: 500, // Maximum height for very large screens
-    minHeight: 200, // Minimum height for very small screens
-    backgroundColor: theme.colors.background,
+    height: screenHeight * 0.5, // 35% of screen height
+    // maxHeight: 500, // Maximum height for very large screens
+    // minHeight: 200, // Minimum height for very small screens
+    // backgroundColor: theme.colors.background,
+    position: 'absolute',
+    top: screenHeight * 0.65,
+    left: 0,
+    zIndex: 10,
   },
   carouselScrollView: {
     flex: 1,
   },
   carouselSection: {
-    paddingTop: theme.spacing.lg,
+    // paddingTop: theme.spacing.lg,
   },
-  bottomPadding: {
-    height: theme.spacing.xxl,
+  extraPadding: {
+    height:  150 + (16 * 2) + 20,
   },
   // Direction Controls
   directionControls: {
