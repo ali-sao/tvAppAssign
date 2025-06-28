@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   StatusBar,
   Pressable,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -15,52 +17,71 @@ import { HeroSection } from '../components/hero/HeroSection';
 import { ContentCarousel } from '../components/carousel/ContentCarousel';
 import { SideMenu } from '../components/menu/SideMenu';
 import { theme } from '../constants/theme';
-import { featuredMovie, contentRows } from '../constants/mockData';
-import { Movie, TVShow, RootStackParamList } from '../types';
+import { useHomepage, useMyList, useMyListOperations } from '../hooks/useStreamingAPI';
+import { ContentEntity } from '../types/api';
+import { RootStackParamList } from '../types';
 import { useDirection } from '../contexts/DirectionContext';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { isRTL, direction, toggleDirection } = useDirection();
-  const [myList, setMyList] = useState<string[]>([]);
-  const [focusedContent, setFocusedContent] = useState<Movie | TVShow | null>(null);
+  const [focusedContent, setFocusedContent] = useState<ContentEntity | null>(null);
+
+  // API Hooks
+  const homepage = useHomepage();
+  const myList = useMyList();
+  const myListOps = useMyListOperations();
+
+  // Hero content changes based on focused item, fallback to first featured item
+  const heroContent = focusedContent || homepage.data?.featured?.[0] || null;
 
   const handlePlayPress = useCallback(() => {
-    if (featuredMovie.videoUrl) {
-      navigation.navigate('Player', {
-        videoUrl: featuredMovie.videoUrl,
-        title: featuredMovie.title,
-      });
+    if (heroContent) {
+      // For now, show alert since we don't have actual video URLs
+      // In real implementation, you would get playout info and navigate to player
+      Alert.alert('Play Content', `Playing: ${heroContent.title}`);
+      // TODO: Get playout info and navigate to player
+      // const playoutInfo = await api.getPlayout({ contentId: heroContent.id });
+      // navigation.navigate('Player', { contentId: heroContent.id, title: heroContent.title });
     } else {
-      Alert.alert('Error', 'Video URL not available');
+      Alert.alert('Error', 'No content available');
     }
-  }, [navigation]);
+  }, [heroContent]);
 
   const handleTrailerPress = useCallback(() => {
-    if (featuredMovie.trailerUrl) {
-      navigation.navigate('Player', {
-        videoUrl: featuredMovie.trailerUrl,
-        title: `${featuredMovie.title} - Trailer`,
-      });
+    if (heroContent?.trailerID) {
+      Alert.alert('Trailer', `Playing trailer for: ${heroContent.title}`);
+      // TODO: Get playout info for trailer and navigate to player
     } else {
-      Alert.alert('Error', 'Trailer URL not available');
+      Alert.alert('Error', 'Trailer not available');
     }
-  }, [navigation]);
+  }, [heroContent]);
 
-  const handleHeroMyListPress = useCallback(() => {
-    const isInList = myList.includes(featuredMovie.id);
+  const handleHeroMyListPress = useCallback(async () => {
+    if (!heroContent) return;
+
+    const isInList = await myListOps.checkInMyList(heroContent.id);
+    
     if (isInList) {
-      setMyList(prev => prev.filter(id => id !== featuredMovie.id));
-      Alert.alert('Removed from My List', `${featuredMovie.title} has been removed from your list.`);
+      const success = await myListOps.removeFromMyList(heroContent.id);
+      if (success) {
+        myList.refetch();
+        Alert.alert('Removed from My List', `${heroContent.title} has been removed from your list.`);
+      }
     } else {
-      setMyList(prev => [...prev, featuredMovie.id]);
-      Alert.alert('Added to My List', `${featuredMovie.title} has been added to your list.`);
+      const success = await myListOps.addToMyList(heroContent.id);
+      if (success) {
+        myList.refetch();
+        Alert.alert('Added to My List', `${heroContent.title} has been added to your list.`);
+      }
     }
-  }, [myList]);
+  }, [heroContent, myListOps, myList]);
 
-  const handleContentItemPress = useCallback((item: Movie | TVShow) => {
+  const handleContentItemPress = useCallback((item: ContentEntity) => {
     Alert.alert(
       'Content Selected',
       `You selected: ${item.title}`,
@@ -69,29 +90,24 @@ export const HomeScreen: React.FC = () => {
         { 
           text: 'Play', 
           onPress: () => {
-            if (item.videoUrl) {
-              navigation.navigate('Player', {
-                videoUrl: item.videoUrl,
-                title: item.title,
-              });
-            } else {
-              Alert.alert('Error', 'Video URL not available');
-            }
+            Alert.alert('Play Content', `Playing: ${item.title}`);
+            // TODO: Get playout info and navigate to player
           }
         },
         { 
           text: 'Details', 
           onPress: () => {
-            // Navigate to detail screen (can be implemented later)
             Alert.alert('Details', `Show details for ${item.title}`);
+            // TODO: Navigate to detail screen
           }
         }
       ]
     );
-  }, [navigation]);
+  }, []);
 
-  const handleContentItemFocus = useCallback((item: Movie | TVShow) => {
+  const handleContentItemFocus = useCallback((item: ContentEntity) => {
     setFocusedContent(item);
+    console.log('🎯 Hero content changed to:', item.title); // Debug log
   }, []);
 
   // Menu handlers
@@ -104,14 +120,56 @@ export const HomeScreen: React.FC = () => {
   }, []);
 
   const handleMyListPress = useCallback(() => {
-    Alert.alert('My List', 'Navigate to favorites/my list');
+    Alert.alert('My List', 'Navigate to my list'); // TODO: Navigate to MyList screen
   }, []);
 
   const handleContinueWatchingPress = useCallback(() => {
     Alert.alert('Continue Watching', 'Navigate to continue watching');
   }, []);
 
-  const isInMyList = myList.includes(featuredMovie.id);
+  // Check if hero content is in my list
+  const checkIsInMyList = useCallback(async () => {
+    if (heroContent) {
+      return await myListOps.checkInMyList(heroContent.id);
+    }
+    return false;
+  }, [heroContent, myListOps]);
+
+  const [isInMyList, setIsInMyList] = useState(false);
+
+  // Update my list status when hero content changes
+  React.useEffect(() => {
+    if (heroContent) {
+      checkIsInMyList().then(setIsInMyList);
+    }
+  }, [heroContent, checkIsInMyList]);
+
+  // Initialize focused content with first featured item when data loads
+  React.useEffect(() => {
+    if (homepage.data?.featured?.[0] && !focusedContent) {
+      setFocusedContent(homepage.data.featured[0]);
+    }
+  }, [homepage.data?.featured, focusedContent]);
+
+  // Show loading state
+  if (homepage.loading) {
+    return (
+      <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={styles.loadingText}>Loading content...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error state
+  if (homepage.error) {
+    return (
+      <SafeAreaView style={[styles.container, styles.errorContainer]}>
+        <Text style={styles.errorText}>Error loading content</Text>
+        <Text style={styles.errorDetail}>{homepage.error}</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, isRTL && styles.containerRTL]}>
@@ -125,69 +183,61 @@ export const HomeScreen: React.FC = () => {
         onContinueWatchingPress={handleContinueWatchingPress}
       />
       
-      {/* Main Content */}
+            {/* Main Content */}
       <View style={[styles.mainContent, isRTL && styles.mainContentRTL]}>
-        {/* Direction Control & Debug Info */}
-        <View style={[styles.directionControls, isRTL && styles.directionControlsRTL]}>
-          <View style={styles.directionInfo}>
-            <Text style={styles.directionText}>
-              {isRTL ? '🔄 RTL Active' : '→ LTR Active'} | Direction: {direction.toUpperCase()}
-            </Text>
-          </View>
-          <Pressable style={styles.toggleButton} onPress={toggleDirection}>
-            <Text style={styles.toggleButtonText}>
-              Switch to {isRTL ? 'LTR' : 'RTL'}
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* RTL Test Area */}
-        <View style={[styles.rtlTestArea, isRTL && styles.rtlTestAreaRTL]}>
-          <Text style={[styles.testText, isRTL && styles.testTextRTL]}>
-            {isRTL ? 'النص العربي - من اليمين إلى اليسار' : 'English Text - Left to Right'}
-          </Text>
-          <View style={[styles.testBoxes, isRTL && styles.testBoxesRTL]}>
-            <View style={[styles.testBox, { backgroundColor: '#ff4444' }]}>
-              <Text style={styles.testBoxText}>1</Text>
-            </View>
-            <View style={[styles.testBox, { backgroundColor: '#44ff44' }]}>
-              <Text style={styles.testBoxText}>2</Text>
-            </View>
-            <View style={[styles.testBox, { backgroundColor: '#4444ff' }]}>
-              <Text style={styles.testBoxText}>3</Text>
-            </View>
-          </View>
-        </View>
-        
-        <ScrollView 
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-        {/* Hero Section */}
-        <HeroSection
-          content={featuredMovie}
-          onPlayPress={handlePlayPress}
-          onTrailerPress={handleTrailerPress}
-          onMyListPress={handleHeroMyListPress}
-          isInMyList={isInMyList}
-        />
-
-        {/* Content Carousels */}
-        <View style={styles.carouselSection}>
-          {contentRows.map((contentRow) => (
-            <ContentCarousel
-              key={contentRow.id}
-              contentRow={contentRow}
-              onItemPress={handleContentItemPress}
-              onItemFocus={handleContentItemFocus}
+        {/* Hero Section - Dynamic height (70% of screen height) */}
+        <View style={styles.heroContainer}>
+          {heroContent && (
+            <HeroSection
+              content={heroContent}
+              onPlayPress={handlePlayPress}
+              onTrailerPress={handleTrailerPress}
+              onMyListPress={handleHeroMyListPress}
+              isInMyList={isInMyList}
             />
-          ))}
+          )}
         </View>
 
-        {/* Bottom padding for better scrolling */}
-        <View style={styles.bottomPadding} />
-      </ScrollView>
+        {/* Content Carousels - Scrollable area */}
+        <View style={styles.carouselContainer}>
+          <ScrollView 
+            style={styles.carouselScrollView}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <View style={styles.carouselSection}>
+              {homepage.data?.trending && homepage.data.trending.length > 0 && (
+                <ContentCarousel
+                  title="Trending Now"
+                  items={homepage.data.trending}
+                  onItemPress={handleContentItemPress}
+                  onItemFocus={handleContentItemFocus}
+                />
+              )}
+              
+              {homepage.data?.newReleases && homepage.data.newReleases.length > 0 && (
+                <ContentCarousel
+                  title="New Releases"
+                  items={homepage.data.newReleases}
+                  onItemPress={handleContentItemPress}
+                  onItemFocus={handleContentItemFocus}
+                />
+              )}
+              
+              {homepage.data?.recommended && homepage.data.recommended.length > 0 && (
+                <ContentCarousel
+                  title="Recommended for You"
+                  items={homepage.data.recommended}
+                  onItemPress={handleContentItemPress}
+                  onItemFocus={handleContentItemFocus}
+                />
+              )}
+            </View>
+
+            {/* Bottom padding for better scrolling */}
+            <View style={styles.bottomPadding} />
+          </ScrollView>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -209,7 +259,20 @@ const styles = StyleSheet.create({
     marginLeft: 0,
     marginRight: 80, // Collapsed menu width
   },
-  scrollView: {
+  // Hero Section - Dynamic height (70% of screen height)
+  heroContainer: {
+    height: screenHeight * 0.7, // 70% of screen height
+    maxHeight: 800, // Maximum height for very large screens
+    minHeight: 400, // Minimum height for very small screens
+  },
+  // Carousel Section - Dynamic height (30% of screen height)
+  carouselContainer: {
+    height: screenHeight * 0.3, // 30% of screen height
+    maxHeight: 400, // Maximum height for very large screens
+    minHeight: 200, // Minimum height for very small screens
+    backgroundColor: theme.colors.background,
+  },
+  carouselScrollView: {
     flex: 1,
   },
   carouselSection: {
@@ -288,5 +351,31 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  // Loading and Error States
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    marginTop: theme.spacing.md,
+  },
+  errorContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+  errorText: {
+    color: theme.colors.error,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: theme.spacing.sm,
+  },
+  errorDetail: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
   },
 }); 

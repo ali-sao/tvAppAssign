@@ -110,8 +110,8 @@ export const FocusableButton: React.FC<FocusableButtonProps> = ({
       <LinearGradient
         colors={[theme.colors.primary, theme.colors.secondary]}
         style={[styles.gradient, style]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        start={{ x: 1, y: 0 }}
+        end={{ x: 0, y: 0 }}
       >
         {renderButton()}
       </LinearGradient>
@@ -124,25 +124,34 @@ export const FocusableButton: React.FC<FocusableButtonProps> = ({
 const styles = StyleSheet.create({
   // Size styles
   small: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    // paddingHorizontal: theme.spacing.md,
+    // paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.sm,
     minWidth: 80,
     height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
   },
   medium: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    // paddingHorizontal: theme.spacing.lg,
+    // paddingVertical: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
     minWidth: 120,
     height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
   },
   large: {
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.lg,
+    // paddingHorizontal: theme.spacing.xl,
+    // paddingVertical: theme.spacing.lg,
     borderRadius: theme.borderRadius.lg,
     minWidth: 160,
     height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
   },
   // Variant styles
   primary: {
@@ -195,7 +204,7 @@ const textStyles = StyleSheet.create({
   },
   // Variant text styles
   primary: {
-    color: theme.colors.text,
+    color: theme.colors.textPrimary,
     textAlign: 'center',
   },
   secondary: {

@@ -81,6 +81,7 @@ export interface AppTheme {
     background: string;
     surface: string;
     text: string;
+    textPrimary: string;
     textSecondary: string;
     accent: string;
     error: string;

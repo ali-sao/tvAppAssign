@@ -2,11 +2,12 @@ import { AppTheme } from '../types';
 
 export const theme: AppTheme = {
   colors: {
-    primary: '#E50914', // Netflix red
+    primary: '#F5C518', // Netflix red
     secondary: '#B81D24',
     background: '#141414',
     surface: '#1E1E1E',
     text: '#FFFFFF',
+    textPrimary: '#000000',
     textSecondary: '#CCCCCC',
     accent: '#F5C518', // IMDb yellow for ratings
     error: '#FF6B6B',

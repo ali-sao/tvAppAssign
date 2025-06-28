@@ -11,8 +11,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { FocusableButton } from '../common/FocusableButton';
 import { theme, dimensions } from '../../constants/theme';
-import { HeroContentProps, Movie, TVShow } from '../../types';
+import { ContentEntity } from '../../types/api';
 import { useDirection } from '../../contexts/DirectionContext';
+
+interface HeroContentProps {
+  content: ContentEntity;
+  onPlayPress: () => void;
+  onTrailerPress: () => void;
+  onMyListPress: () => void;
+  isInMyList: boolean;
+}
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -26,34 +34,33 @@ export const HeroSection: React.FC<HeroContentProps> = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const { isRTL } = useDirection();
 
-  const formatRuntime = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+  const formatRuntime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${mins}m`;
   };
 
   const getContentInfo = () => {
-    if ('seasons' in content) {
-      // TV Show
-      const tvShow = content as TVShow;
-      return `${tvShow.seasons} Season${tvShow.seasons > 1 ? 's' : ''} • ${tvShow.episodes} Episodes`;
+    if (content.type === 'show' || content.type === 'episode') {
+      // For shows, we don't have season/episode info in ContentEntity, so show type
+      return content.type === 'show' ? 'TV Series' : 'Episode';
     } else {
-      // Movie
-      const movie = content as Movie;
-      return formatRuntime(movie.runtime);
+      // Movie or other content - show runtime
+      return formatRuntime(content.durationInSeconds);
     }
   };
 
   const getCastString = (): string => {
-    return content.cast.slice(0, 3).map(actor => actor.name).join(', ');
+    return content.cast.slice(0, 3).join(', ');
   };
 
   return (
     <View style={styles.container}>
       <ImageBackground
-        source={{ uri: content.backdropUrl }}
+        source={{ uri: content.heroImage }}
         style={styles.backgroundImage}
         resizeMode="cover"
+        imageStyle={styles.backgroundImageStyle}
         onLoad={() => setImageLoaded(true)}
       >
         {/* Gradient Overlays */}
@@ -66,9 +73,9 @@ export const HeroSection: React.FC<HeroContentProps> = ({
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.6)']}
           style={styles.leftGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          locations={[0, 1]}
+          start={{ x: 1, y: 0 }}
+          end={{ x: 0, y: 0 }}
+          locations={[0, 0.3, 0.7, 1]}
         />
 
         {/* Content */}
@@ -92,9 +99,9 @@ export const HeroSection: React.FC<HeroContentProps> = ({
               styles.metaInfo,
               isRTL && styles.metaInfoRTL
             ]}>
-              <Text style={styles.year}>{content.year}</Text>
+              <Text style={styles.year}>{content.type.toUpperCase()}</Text>
               <View style={styles.ratingBadge}>
-                <Text style={styles.rating}>{content.rating}</Text>
+                <Text style={styles.rating}>{content.contentRating}</Text>
               </View>
               <Text style={styles.runtime}>{getContentInfo()}</Text>
             </View>
@@ -119,7 +126,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
               <FocusableButton
                 title="▶ PLAY"
                 variant="primary"
-                size="large"
+                size="medium"
                 onPress={onPlayPress}
                 hasTVPreferredFocus={true}
                 style={styles.playButton}
@@ -128,7 +135,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
               <FocusableButton
                 title="TRAILER"
                 variant="secondary"
-                size="large"
+                size="medium"
                 onPress={onTrailerPress}
                 style={styles.trailerButton}
               />
@@ -161,19 +168,24 @@ export const HeroSection: React.FC<HeroContentProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: dimensions.heroHeight,
-    width: screenWidth,
+    flex: 1, // Take full height of parent container
+    width: '100%', // Use percentage instead of fixed screenWidth
   },
   backgroundImage: {
     flex: 1,
     justifyContent: 'flex-end',
+    width: '100%',
+    height: '100%',
+  },
+  backgroundImageStyle: {
+    resizeMode: 'cover',
   },
   gradientOverlay: {
     ...StyleSheet.absoluteFillObject,
   },
   leftGradient: {
     ...StyleSheet.absoluteFillObject,
-    width: screenWidth * 0.7,
+    width: '70%', // Use percentage instead of screenWidth calculation
   },
   contentContainer: {
     flex: 1,
@@ -181,6 +193,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xxl,
     paddingBottom: theme.spacing.xxl,
     justifyContent: 'space-between',
+    minHeight: 200, // Ensure minimum content height
   },
   contentContainerRTL: {
     flexDirection: 'row-reverse',
@@ -188,7 +201,7 @@ const styles = StyleSheet.create({
   leftContent: {
     flex: 1,
     justifyContent: 'flex-end',
-    maxWidth: screenWidth * 0.6,
+    maxWidth: '60%', // Use percentage instead of screenWidth calculation
   },
   leftContentRTL: {
     alignItems: 'flex-end',
@@ -197,6 +210,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
     paddingLeft: theme.spacing.xl,
+    maxWidth: '35%', // Ensure right content doesn't take too much space
   },
   title: {
     fontSize: theme.typography.title.fontSize,
@@ -297,9 +311,10 @@ const styles = StyleSheet.create({
     bottom: theme.spacing.xxl,
     opacity: 0.15,
     zIndex: -1,
+    maxWidth: '50%', // Prevent overflow on smaller screens
   },
   largeTitleText: {
-    fontSize: 120,
+    fontSize: Math.min(120, screenWidth * 0.15), // Responsive font size
     fontWeight: 'bold',
     color: theme.colors.text,
     letterSpacing: -2,

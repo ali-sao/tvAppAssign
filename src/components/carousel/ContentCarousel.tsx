@@ -11,19 +11,20 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme, focusStyles, dimensions } from '../../constants/theme';
-import { ContentRow, Movie, TVShow } from '../../types';
+import { ContentEntity } from '../../types/api';
 import { useDirection } from '../../contexts/DirectionContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 interface ContentCarouselProps {
-  contentRow: ContentRow;
-  onItemPress: (item: Movie | TVShow) => void;
-  onItemFocus?: (item: Movie | TVShow) => void;
+  title: string;
+  items: ContentEntity[];
+  onItemPress: (item: ContentEntity) => void;
+  onItemFocus?: (item: ContentEntity) => void;
 }
 
 interface CarouselItemProps {
-  item: Movie | TVShow;
+  item: ContentEntity;
   index: number;
   onPress: () => void;
   onFocus?: () => void;
@@ -76,10 +77,12 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
   };
 
   const getItemInfo = () => {
-    if ('seasons' in item) {
-      return `${item.seasons} Season${item.seasons > 1 ? 's' : ''}`;
+    if (item.type === 'show') {
+      return 'TV Series';
+    } else if (item.type === 'movie') {
+      return 'Movie';
     }
-    return item.year.toString();
+    return item.type.charAt(0).toUpperCase() + item.type.slice(1);
   };
 
   return (
@@ -98,7 +101,7 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
       >
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: item.posterUrl }}
+            source={{ uri: item.logoTitleImage }}
             style={styles.poster}
             onLoad={handleImageLoad}
             placeholder={{ blurhash: 'L6PZfSjE.AyE_3t7t7R**0o#DgR4' }}
@@ -129,7 +132,7 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
 
           {/* Rating badge */}
           <View style={styles.ratingBadge}>
-            <Text style={styles.ratingText}>{item.rating}</Text>
+            <Text style={styles.ratingText}>{item.contentRating}</Text>
           </View>
         </View>
 
@@ -148,7 +151,8 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
 };
 
 export const ContentCarousel: React.FC<ContentCarouselProps> = ({
-  contentRow,
+  title,
+  items,
   onItemPress,
   onItemFocus,
 }) => {
@@ -156,11 +160,11 @@ export const ContentCarousel: React.FC<ContentCarouselProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const { isRTL } = useDirection();
 
-  const handleItemPress = useCallback((item: Movie | TVShow) => {
+  const handleItemPress = useCallback((item: ContentEntity) => {
     onItemPress(item);
   }, [onItemPress]);
 
-  const handleItemFocus = useCallback((item: Movie | TVShow, index: number) => {
+  const handleItemFocus = useCallback((item: ContentEntity, index: number) => {
     setCurrentIndex(index);
     onItemFocus?.(item);
     
@@ -174,7 +178,7 @@ export const ContentCarousel: React.FC<ContentCarouselProps> = ({
     }
   }, [onItemFocus]);
 
-  const renderItem = ({ item, index }: { item: Movie | TVShow; index: number }) => (
+  const renderItem = ({ item, index }: { item: ContentEntity; index: number }) => (
     <CarouselItem
       item={item}
       index={index}
@@ -195,14 +199,14 @@ export const ContentCarousel: React.FC<ContentCarouselProps> = ({
         styles.sectionTitle,
         isRTL && styles.sectionTitleRTL
       ]}>
-        {contentRow.title}
+        {title}
       </Text>
       
       <FlatList
         ref={flatListRef}
-        data={contentRow.items}
+        data={items}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         horizontal
         showsHorizontalScrollIndicator={false}
         getItemLayout={getItemLayout}
