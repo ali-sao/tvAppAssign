@@ -7,6 +7,7 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
+import { useRoute } from '@react-navigation/native';
 import { useDirection } from '../../contexts/DirectionContext';
 import { useMenu } from '../../contexts/MenuContext';
 import { theme } from '../../constants/theme';
@@ -18,6 +19,7 @@ interface MenuItem {
   icon: string;
   label: string;
   onPress: () => void;
+  routeName?: string; // Route name to match for active state
 }
 
 interface SideMenuProps {
@@ -33,6 +35,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   onMyListPress,
   onContinueWatchingPress,
 }) => {
+  const route = useRoute();
   const { isRTL } = useDirection();
   const { setMenuFocused } = useMenu();
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -42,6 +45,14 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   // Animation values
   const menuWidthAnim = useRef(new Animated.Value(MENU_COLLAPSED_WIDTH)).current;
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Get current route name
+  const currentRouteName = route.name;
+  
+  // Helper function to check if menu item is active
+  const isMenuItemActive = (item: MenuItem): boolean => {
+    return item.routeName === currentRouteName;
+  };
 
   const menuItems: MenuItem[] = [
     {
@@ -49,24 +60,28 @@ export const SideMenu: React.FC<SideMenuProps> = ({
       icon: '👤',
       label: 'Profile & Settings',
       onPress: onProfilePress,
+      // No routeName - this is a modal/action, not a route
     },
     {
       id: 'home',
       icon: '🏠',
       label: 'Home',
       onPress: onHomePress,
+      routeName: 'Home',
     },
     {
       id: 'mylist',
       icon: '❤️',
       label: 'My List',
       onPress: onMyListPress,
+      routeName: 'MyList',
     },
     {
       id: 'continue',
       icon: '▶️',
       label: 'Continue Watching',
       onPress: onContinueWatchingPress,
+      // No routeName - this might be a modal or filtered view
     },
   ];
 
@@ -141,6 +156,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               style={[
                 styles.menuItem,
                 focusedIndex === index && styles.menuItemFocused,
+                isMenuItemActive(item) && styles.menuItemActive,
+                isMenuItemActive(item) && isRTL && styles.menuItemActiveRTL,
                 isRTL && styles.menuItemRTL
               ]}
               onPress={item.onPress}
@@ -149,7 +166,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({
             >
               <Text style={[
                 styles.menuIcon,
-                isRTL && styles.menuIconRTL
+                isRTL && styles.menuIconRTL,
+                isMenuItemActive(item) && styles.menuIconActive
               ]}>
                 {item.icon}
               </Text>
@@ -158,6 +176,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                   styles.menuLabel,
                   isRTL && styles.menuLabelRTL,
                   focusedIndex === index && styles.menuLabelFocused,
+                  isMenuItemActive(item) && styles.menuLabelActive,
                 ]}>
                   {item.label}
                 </Text>
@@ -239,6 +258,16 @@ const styles = StyleSheet.create({
   menuItemFocused: {
     backgroundColor: theme.colors.primary,
   },
+  menuItemActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.accent,
+  },
+  menuItemActiveRTL: {
+    borderLeftWidth: 0,
+    borderRightWidth: 3,
+    borderRightColor: theme.colors.accent,
+  },
   menuIcon: {
     position: 'absolute',
     fontSize: 24,
@@ -251,6 +280,9 @@ const styles = StyleSheet.create({
   menuIconRTL: {
     left: undefined,
     right: 24, // Fixed position from right in RTL
+  },
+  menuIconActive: {
+    color: theme.colors.accent,
   },
   menuLabel: {
     fontSize: theme.typography.body.fontSize,
@@ -267,6 +299,10 @@ const styles = StyleSheet.create({
   menuLabelFocused: {
     fontWeight: '600',
     color: theme.colors.background,
+  },
+  menuLabelActive: {
+    color: theme.colors.accent,
+    fontWeight: '600',
   },
   footer: {
     paddingHorizontal: theme.spacing.md,
