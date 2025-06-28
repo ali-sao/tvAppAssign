@@ -14,7 +14,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { HeroSection } from '../components/hero/HeroSection';
-import { ContentCarousel } from '../components/carousel/ContentCarousel';
+import { Carousel } from '../components/carousel/Carousel';
 import { SideMenu } from '../components/menu/SideMenu';
 import { theme } from '../constants/theme';
 import { useHomepage, useMyList, useMyListOperations } from '../hooks/useStreamingAPI';
@@ -207,7 +207,7 @@ export const HomeScreen: React.FC = () => {
           >
             <View style={styles.carouselSection}>
               {homepage.data?.trending && homepage.data.trending.length > 0 && (
-                <ContentCarousel
+                <Carousel
                   title="Trending Now"
                   items={homepage.data.trending}
                   onItemPress={handleContentItemPress}
@@ -216,7 +216,7 @@ export const HomeScreen: React.FC = () => {
               )}
               
               {homepage.data?.newReleases && homepage.data.newReleases.length > 0 && (
-                <ContentCarousel
+                <Carousel
                   title="New Releases"
                   items={homepage.data.newReleases}
                   onItemPress={handleContentItemPress}
@@ -225,7 +225,7 @@ export const HomeScreen: React.FC = () => {
               )}
               
               {homepage.data?.recommended && homepage.data.recommended.length > 0 && (
-                <ContentCarousel
+                <Carousel
                   title="Recommended for You"
                   items={homepage.data.recommended}
                   onItemPress={handleContentItemPress}

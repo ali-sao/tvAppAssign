@@ -145,7 +145,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
           {/* Right Side - My List */}
           <View style={styles.rightContent}>
             <View style={styles.myListContainer}>
-              <Text style={styles.myListTitle}>MY LIST</Text>
+              {/* <Text style={styles.myListTitle}>MY LIST</Text> */}
               <FocusableButton
                 title={isInMyList ? "✓ ADDED" : "+ ADD"}
                 variant="outline"
