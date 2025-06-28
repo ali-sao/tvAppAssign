@@ -52,6 +52,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   
   // Animation values
   const menuWidthAnim = useRef(new Animated.Value(MENU_COLLAPSED_WIDTH)).current;
+  const animatedValues = useRef<{ [key: number]: Animated.Value }>({});
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Get current route name
@@ -151,13 +152,43 @@ export const SideMenu: React.FC<SideMenuProps> = ({
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = null;
     }
+    
+    // Animate out previous focused item
+    if (focusedIndex >= 0 && animatedValues.current[focusedIndex]) {
+      Animated.timing(animatedValues.current[focusedIndex], {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+    
     setFocusedIndex(index);
     setMenuFocused(true);
+    
+    // Animate in new focused item
+    if (!animatedValues.current[index]) {
+      animatedValues.current[index] = new Animated.Value(0);
+    }
+    
+    Animated.timing(animatedValues.current[index], {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleBlur = () => {
     // Delay the blur to avoid flashing when moving between items
     blurTimeoutRef.current = setTimeout(() => {
+      // Animate out current focused item
+      if (focusedIndex >= 0 && animatedValues.current[focusedIndex]) {
+        Animated.timing(animatedValues.current[focusedIndex], {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      }
+      
       setFocusedIndex(-1);
       setMenuFocused(false);
     }, 50); // Small delay to allow focus to move to another menu item
@@ -188,6 +219,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               const isFocused = focusedIndex === index;
               const isActive = isMenuItemActive(item);
               
+              // Create animated value for this item if it doesn't exist
+              if (!animatedValues.current[index]) {
+                animatedValues.current[index] = new Animated.Value(0);
+              }
+              
+              const animatedValue = animatedValues.current[index];
+              
               return (
                 <Pressable
                   key={item.id}
@@ -199,33 +237,47 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                   onFocus={() => handleFocus(index)}
                   onBlur={handleBlur}
                 >
-                  {isFocused && (
+                  <Animated.View style={[
+                    styles.menuItemFocusedGradient,
+                    { opacity: animatedValue }
+                  ]}>
                     <LinearGradient
                       colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0)']}
                       start={isRTL ? { x: 1, y: 0 } : { x: 0, y: 0 }}
                       end={isRTL ? { x: 0, y: 0 } : { x: 1, y: 0 }}
-                      style={styles.menuItemFocusedGradient}
+                      style={styles.gradientFill}
                     />
-                  )}
-                                  <Icon
-                    name={item.icon}
-                    size={24}
-                    style={[
-                      styles.menuIcon,
-                      isRTL && styles.menuIconRTL,
-                      isActive && styles.menuIconActive,
-                      isFocused && styles.menuIconFocused
-                    ]}
-                  />
+                  </Animated.View>
+                  <View style={[
+                    styles.menuIcon,
+                    isRTL && styles.menuIconRTL,
+                  ]}>
+                    <Icon
+                      name={item.icon}
+                      size={24}
+                      style={[
+                        isActive && styles.menuIconActive,
+                        isFocused && styles.menuIconFocused
+                      ]}
+                    />
+                  </View>
                   {showText && (
-                    <Text style={[
+                    <Animated.Text style={[
                       styles.menuLabel,
                       isRTL && styles.menuLabelRTL,
                       isActive && styles.menuLabelActive,
-                      isFocused && styles.menuLabelFocused,
+                      {
+                        color: animatedValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [
+                            isActive ? theme.colors.accent : theme.colors.text,
+                            '#FFFFFF'
+                          ],
+                        }),
+                      }
                     ]}>
                       {item.label}
-                    </Text>
+                    </Animated.Text>
                   )}
                               </Pressable>
               );
@@ -255,7 +307,7 @@ const styles = StyleSheet.create({
   },
   containerRTL: {
     right: 0,
-    borderLeftWidth: 2,
+    left: undefined,
   },
   menuContent: {
     flex: 1,
@@ -285,16 +337,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: theme.borderRadius.md,
   },
+  gradientFill: {
+    flex: 1,
+    borderRadius: theme.borderRadius.md,
+  },
   menuIcon: {
     position: 'absolute',
-    left: 15, // Fixed position from left
+    left: 12, // Fixed position from left
     top: '50%',
     transform: [{ translateY: -12 }], // Center vertically
     color: theme.colors.textSecondary,
   },
   menuIconRTL: {
+    flexDirection: 'row-reverse',
     left: undefined,
-    right: 20, // Fixed position from right in RTL
+    right: 12, // Fixed position from right in RTL
   },
   menuIconActive: {
     color: theme.colors.accent,
