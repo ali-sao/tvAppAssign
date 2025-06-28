@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ApiResponse,
   ContentEntity,
@@ -25,6 +26,13 @@ import {
   searchContent
 } from './mockData';
 
+// Storage keys for AsyncStorage
+const STORAGE_KEYS = {
+  WATCH_PROGRESS: '@thamaneyah_watch_progress',
+  MY_LIST: '@thamaneyah_my_list',
+  ACTIVE_SESSIONS: '@thamaneyah_active_sessions'
+};
+
 // Simulate API delay
 const simulateDelay = (ms: number = 500): Promise<void> => 
   new Promise(resolve => setTimeout(resolve, ms));
@@ -35,8 +43,114 @@ let mockWatchProgress = generateMockWatchProgress();
 let mockMyList = generateMockMyList();
 let activeSessions: Map<string, { contentId: number; lastHeartbeat: number }> = new Map();
 
+// AsyncStorage helper functions
+const StorageHelper = {
+  // Watch Progress
+  async getWatchProgress(): Promise<WatchProgress[]> {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEYS.WATCH_PROGRESS);
+      return stored ? JSON.parse(stored) : generateMockWatchProgress();
+    } catch (error) {
+      console.error('Failed to load watch progress from storage:', error);
+      return generateMockWatchProgress();
+    }
+  },
+
+  async saveWatchProgress(progress: WatchProgress[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.WATCH_PROGRESS, JSON.stringify(progress));
+      console.log('📱 Watch progress saved to storage');
+    } catch (error) {
+      console.error('Failed to save watch progress to storage:', error);
+    }
+  },
+
+  // My List
+  async getMyList(): Promise<number[]> {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEYS.MY_LIST);
+      return stored ? JSON.parse(stored) : generateMockMyList();
+    } catch (error) {
+      console.error('Failed to load my list from storage:', error);
+      return generateMockMyList();
+    }
+  },
+
+  async saveMyList(myList: number[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.MY_LIST, JSON.stringify(myList));
+      console.log('📱 My list saved to storage');
+    } catch (error) {
+      console.error('Failed to save my list to storage:', error);
+    }
+  },
+
+  // Active Sessions
+  async getActiveSessions(): Promise<Map<string, { contentId: number; lastHeartbeat: number }>> {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_SESSIONS);
+      if (stored) {
+        const sessionsArray = JSON.parse(stored);
+        return new Map(sessionsArray);
+      }
+      return new Map();
+    } catch (error) {
+      console.error('Failed to load active sessions from storage:', error);
+      return new Map();
+    }
+  },
+
+  async saveActiveSessions(sessions: Map<string, { contentId: number; lastHeartbeat: number }>): Promise<void> {
+    try {
+      const sessionsArray = Array.from(sessions.entries());
+      await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_SESSIONS, JSON.stringify(sessionsArray));
+      console.log('📱 Active sessions saved to storage');
+    } catch (error) {
+      console.error('Failed to save active sessions to storage:', error);
+    }
+  },
+
+  // Clear all data (useful for testing/reset)
+  async clearAllData(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.WATCH_PROGRESS,
+        STORAGE_KEYS.MY_LIST,
+        STORAGE_KEYS.ACTIVE_SESSIONS
+      ]);
+      console.log('📱 All storage data cleared');
+    } catch (error) {
+      console.error('Failed to clear storage data:', error);
+    }
+  }
+};
+
 class StreamingAPI {
   private baseURL = 'https://api.thamaneyah-streaming.com/v1';
+  private initialized = false;
+
+  // Initialize API with stored data
+  private async initialize(): Promise<void> {
+    if (this.initialized) return;
+    
+    try {
+      console.log('🔄 Initializing API with stored data...');
+      
+      // Load data from AsyncStorage
+      mockWatchProgress = await StorageHelper.getWatchProgress();
+      mockMyList = await StorageHelper.getMyList();
+      activeSessions = await StorageHelper.getActiveSessions();
+      
+      this.initialized = true;
+      console.log('✅ API initialized with stored data');
+      console.log(`📊 Loaded ${mockWatchProgress.length} watch progress entries`);
+      console.log(`📋 Loaded ${mockMyList.length} my list items`);
+      console.log(`🔗 Loaded ${activeSessions.size} active sessions`);
+    } catch (error) {
+      console.error('❌ Failed to initialize API:', error);
+      this.initialized = true; // Continue with defaults
+    }
+  }
 
   // 1. Fetch Homepage entities
   async getHomepage(): Promise<ApiResponse<HomepageResponse>> {
@@ -71,9 +185,12 @@ class StreamingAPI {
   // 2. My List - Get all favorites
   async getMyList(): Promise<ApiResponse<MyListResponse>> {
     try {
+      await this.initialize(); // Ensure data is loaded
       await simulateDelay();
 
       const items = mockContent.filter(content => mockMyList.includes(content.id));
+      
+      console.log(`📋 My list: ${items.length} items loaded from storage`);
       
       const data: MyListResponse = {
         items,
@@ -82,6 +199,7 @@ class StreamingAPI {
 
       return { success: true, data };
     } catch (error) {
+      console.error('❌ My list error:', error);
       return {
         success: false,
         error: {
@@ -96,10 +214,26 @@ class StreamingAPI {
   // 3. Add to My List
   async addToMyList(contentId: number): Promise<ApiResponse<{ success: boolean }>> {
     try {
+      await this.initialize(); // Ensure data is loaded
       await simulateDelay(300);
+
+      const content = mockContent.find(c => c.id === contentId);
+      if (!content) {
+        return {
+          success: false,
+          error: {
+            code: 'CONTENT_NOT_FOUND',
+            message: 'Content not found'
+          }
+        };
+      }
 
       if (!mockMyList.includes(contentId)) {
         mockMyList.push(contentId);
+        await StorageHelper.saveMyList(mockMyList);
+        console.log(`➕ Added "${content.title}" to my list`);
+      } else {
+        console.log(`⚠️ "${content.title}" already in my list`);
       }
 
       return { 
@@ -107,6 +241,7 @@ class StreamingAPI {
         data: { success: true } 
       };
     } catch (error) {
+      console.error('❌ Add to my list error:', error);
       return {
         success: false,
         error: {
@@ -121,15 +256,27 @@ class StreamingAPI {
   // Remove from My List
   async removeFromMyList(contentId: number): Promise<ApiResponse<{ success: boolean }>> {
     try {
+      await this.initialize(); // Ensure data is loaded
       await simulateDelay(300);
 
+      const content = mockContent.find(c => c.id === contentId);
+      const wasInList = mockMyList.includes(contentId);
+
       mockMyList = mockMyList.filter(id => id !== contentId);
+
+      if (wasInList) {
+        await StorageHelper.saveMyList(mockMyList);
+        console.log(`➖ Removed "${content?.title || contentId}" from my list`);
+      } else {
+        console.log(`⚠️ Content "${content?.title || contentId}" was not in my list`);
+      }
 
       return { 
         success: true, 
         data: { success: true } 
       };
     } catch (error) {
+      console.error('❌ Remove from my list error:', error);
       return {
         success: false,
         error: {
@@ -144,10 +291,11 @@ class StreamingAPI {
   // 4. Continue Watching items
   async getContinueWatching(): Promise<ApiResponse<ContinueWatchingResponse>> {
     try {
+      await this.initialize(); // Ensure data is loaded
       await simulateDelay();
 
       const items: ContinueWatchingItem[] = mockWatchProgress
-        .filter(progress => !progress.completed)
+        .filter(progress => !progress.completed && progress.progressInSeconds > 30) // Only show if watched more than 30 seconds
         .map(progress => {
           const content = mockContent.find(c => c.id === progress.contentId);
           if (!content) return null;
@@ -164,10 +312,13 @@ class StreamingAPI {
         new Date(b.progress.lastWatched).getTime() - new Date(a.progress.lastWatched).getTime()
       );
 
+      console.log(`📺 Continue watching: ${items.length} items loaded from storage`);
+
       const data: ContinueWatchingResponse = { items };
 
       return { success: true, data };
     } catch (error) {
+      console.error('❌ Continue watching error:', error);
       return {
         success: false,
         error: {
@@ -182,9 +333,12 @@ class StreamingAPI {
   // 5. Heartbeat service - Log progress
   async sendHeartbeat(request: HeartbeatRequest): Promise<ApiResponse<{ success: boolean }>> {
     try {
+      await this.initialize(); // Ensure data is loaded
       await simulateDelay(100); // Faster response for heartbeat
 
       const { contentId, progressInSeconds, sessionId } = request;
+
+      console.log(`💓 Heartbeat received - Content: ${contentId}, Progress: ${Math.floor(progressInSeconds)}s, Session: ${sessionId}`);
 
       // Update active session
       activeSessions.set(sessionId, {
@@ -207,6 +361,7 @@ class StreamingAPI {
       }
 
       const isCompleted = progressInSeconds >= (content.durationInSeconds * 0.9); // 90% completion
+      const progressPercentage = ((progressInSeconds / content.durationInSeconds) * 100).toFixed(1);
 
       const newProgress: WatchProgress = {
         contentId,
@@ -217,8 +372,20 @@ class StreamingAPI {
 
       if (existingProgressIndex >= 0) {
         mockWatchProgress[existingProgressIndex] = newProgress;
+        console.log(`📝 Updated watch progress for "${content.title}": ${progressPercentage}% (${Math.floor(progressInSeconds)}s)`);
       } else {
         mockWatchProgress.push(newProgress);
+        console.log(`📝 Created new watch progress for "${content.title}": ${progressPercentage}% (${Math.floor(progressInSeconds)}s)`);
+      }
+
+      // Persist to AsyncStorage
+      await Promise.all([
+        StorageHelper.saveWatchProgress(mockWatchProgress),
+        StorageHelper.saveActiveSessions(activeSessions)
+      ]);
+
+      if (isCompleted) {
+        console.log(`🎉 Content "${content.title}" marked as completed!`);
       }
 
       return { 
@@ -226,6 +393,7 @@ class StreamingAPI {
         data: { success: true } 
       };
     } catch (error) {
+      console.error('❌ Heartbeat error:', error);
       return {
         success: false,
         error: {
@@ -476,6 +644,7 @@ class StreamingAPI {
 
   // Utility method to check if content is in my list
   async isInMyList(contentId: number): Promise<boolean> {
+    await this.initialize(); // Ensure data is loaded
     return mockMyList.includes(contentId);
   }
 
@@ -501,6 +670,120 @@ class StreamingAPI {
         error: {
           code: 'GET_CONTENT_ERROR',
           message: 'Failed to get content',
+          details: error
+        }
+      };
+    }
+  }
+
+  // Get watch progress for specific content
+  async getWatchProgress(contentId: number): Promise<ApiResponse<WatchProgress | null>> {
+    try {
+      await this.initialize(); // Ensure data is loaded
+      
+      const progress = mockWatchProgress.find(p => p.contentId === contentId);
+      return { success: true, data: progress || null };
+    } catch (error) {
+      console.error('❌ Get watch progress error:', error);
+      return {
+        success: false,
+        error: {
+          code: 'GET_PROGRESS_ERROR',
+          message: 'Failed to get watch progress',
+          details: error
+        }
+      };
+    }
+  }
+
+  // Session management
+  async createSession(contentId: number): Promise<ApiResponse<{ sessionId: string }>> {
+    try {
+      await this.initialize(); // Ensure data is loaded
+      
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      activeSessions.set(sessionId, {
+        contentId,
+        lastHeartbeat: Date.now()
+      });
+
+      await StorageHelper.saveActiveSessions(activeSessions);
+      
+      const content = mockContent.find(c => c.id === contentId);
+      console.log(`🔗 Created session ${sessionId} for "${content?.title || contentId}"`);
+
+      return { 
+        success: true, 
+        data: { sessionId } 
+      };
+    } catch (error) {
+      console.error('❌ Create session error:', error);
+      return {
+        success: false,
+        error: {
+          code: 'CREATE_SESSION_ERROR',
+          message: 'Failed to create session',
+          details: error
+        }
+      };
+    }
+  }
+
+  async endSession(sessionId: string): Promise<ApiResponse<{ success: boolean }>> {
+    try {
+      await this.initialize(); // Ensure data is loaded
+      
+      const session = activeSessions.get(sessionId);
+      if (session) {
+        activeSessions.delete(sessionId);
+        await StorageHelper.saveActiveSessions(activeSessions);
+        
+        const content = mockContent.find(c => c.id === session.contentId);
+        console.log(`🔚 Ended session ${sessionId} for "${content?.title || session.contentId}"`);
+      }
+
+      return { 
+        success: true, 
+        data: { success: true } 
+      };
+    } catch (error) {
+      console.error('❌ End session error:', error);
+      return {
+        success: false,
+        error: {
+          code: 'END_SESSION_ERROR',
+          message: 'Failed to end session',
+          details: error
+        }
+      };
+    }
+  }
+
+  // Clear all stored data (useful for testing/reset)
+  async clearAllData(): Promise<ApiResponse<{ success: boolean }>> {
+    try {
+      await StorageHelper.clearAllData();
+      
+      // Reset in-memory data to defaults
+      mockWatchProgress = generateMockWatchProgress();
+      mockMyList = generateMockMyList();
+      activeSessions.clear();
+      this.initialized = false;
+
+      console.log('🗑️ All data cleared and reset to defaults');
+
+      return { 
+        success: true, 
+        data: { success: true } 
+      };
+    } catch (error) {
+      console.error('❌ Clear data error:', error);
+      return {
+        success: false,
+        error: {
+          code: 'CLEAR_DATA_ERROR',
+          message: 'Failed to clear data',
           details: error
         }
       };

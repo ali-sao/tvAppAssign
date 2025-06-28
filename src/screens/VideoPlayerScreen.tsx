@@ -28,19 +28,16 @@ import Video, {
 import { RootStackParamList } from '../types';
 import { theme } from '../constants/theme';
 import { usePlayout } from '../hooks/useStreamingAPI';
-import { PlayoutRequest } from '../types/api';
+import { PlayoutRequest, HeartbeatRequest } from '../types/api';
 import { useDirection } from '../contexts/DirectionContext';
 import { VTTCue, loadVTTFile, getCurrentSubtitle } from '../utils/vttParser';
 import { SubtitleSelector, SubtitleTrack } from '../components/common/SubtitleSelector';
+import { streamingAPI } from '../services/api';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 type VideoPlayerScreenRouteProp = RouteProp<RootStackParamList, 'Player'>;
 type VideoPlayerScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Player'>;
-
-
-
-
 
 interface PlayerState {
   paused: boolean;
@@ -49,13 +46,15 @@ interface PlayerState {
   loading: boolean;
   buffering: boolean;
   muted: boolean;
-  lastRemoteAction?: string;
+  warningMessage?: string;
   seekDirection?: 'forward' | 'backward' | null;
   subtitleTracks: SubtitleTrack[];
   selectedSubtitleTrack: number;
   showSubtitleModal: boolean;
   currentSubtitle: string | null;
   subtitleCues: VTTCue[];
+  sessionId: string | null;
+  lastHeartbeatTime: number;
 }
 
 export const VideoPlayerScreen: React.FC = () => {
@@ -65,6 +64,12 @@ export const VideoPlayerScreen: React.FC = () => {
   const { isRTL } = useDirection();
   
   const videoRef = useRef<VideoRef>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionCleanupRef = useRef<{
+    sessionId: string | null;
+    currentTime: number;
+  }>({ sessionId: null, currentTime: 0 });
   
   // Animation refs for seek buttons
   const seekBackwardAnimTranslate = useRef(new Animated.Value(0)).current;
@@ -78,13 +83,15 @@ export const VideoPlayerScreen: React.FC = () => {
     loading: true,
     buffering: false,
     muted: false,
-    lastRemoteAction: undefined,
+    warningMessage: undefined,
     seekDirection: null,
     subtitleTracks: [],
     selectedSubtitleTrack: -1, // -1 means no subtitles
     showSubtitleModal: false,
     currentSubtitle: null,
     subtitleCues: [],
+    sessionId: null,
+    lastHeartbeatTime: 0,
   });
   
   // Prepare playout request
@@ -98,16 +105,132 @@ export const VideoPlayerScreen: React.FC = () => {
   // Fetch playout data
   const { data: playout, loading: playoutLoading, error: playoutError } = usePlayout(playoutRequest);
 
-  // Control handlers
-  const handleBackPress = useCallback(() => {
-    console.log('🔙 Back button pressed');
-    navigation.goBack();
-  }, [navigation]);
+  // Heartbeat functionality
+  const createSession = useCallback(async () => {
+    try {
+      console.log('💓 Creating playback session...');
+      const response = await streamingAPI.createSession(contentId);
+      
+      if (response.success && response.data) {
+        const sessionId = response.data.sessionId;
+        setPlayerState(prev => ({ ...prev, sessionId }));
+        console.log(`💓 Session created: ${sessionId}`);
+        return sessionId;
+      } else {
+        console.error('💓 Failed to create session:', response.error);
+        return null;
+      }
+    } catch (error) {
+      console.error('💓 Session creation error:', error);
+      return null;
+    }
+  }, [contentId]);
 
-  const togglePlayPause = useCallback(() => {
+  const sendHeartbeat = useCallback(async (currentTime: number, sessionId: string, reason: string = 'progress') => {
+    try {
+      // For interval heartbeats, check if enough time has passed (5 seconds)
+      if (reason === 'interval') {
+        const now = Date.now();
+        const timeSinceLastHeartbeat = now - playerState.lastHeartbeatTime;
+        if (timeSinceLastHeartbeat < 5000) {
+          return; // Skip if less than 5 seconds since last heartbeat
+        }
+      }
+
+      const heartbeatRequest: HeartbeatRequest = {
+        contentId,
+        progressInSeconds: currentTime,
+        sessionId,
+      };
+
+      console.log(`💓 Sending heartbeat (${reason}): ${Math.floor(currentTime)}s`);
+      const response = await streamingAPI.sendHeartbeat(heartbeatRequest);
+      
+      if (response.success) {
+        setPlayerState(prev => ({ ...prev, lastHeartbeatTime: Date.now() }));
+      } else {
+        console.error('💓 Heartbeat failed:', response.error);
+      }
+    } catch (error) {
+      console.error('💓 Heartbeat error:', error);
+    }
+  }, [contentId, playerState.lastHeartbeatTime]);
+
+  const endSession = useCallback(async (sessionId: string) => {
+    try {
+      console.log('💓 Ending playback session...');
+      const response = await streamingAPI.endSession(sessionId);
+      
+      if (response.success) {
+        console.log('💓 Session ended successfully');
+      } else {
+        console.error('💓 Failed to end session:', response.error);
+      }
+    } catch (error) {
+      console.error('💓 End session error:', error);
+    }
+  }, []);
+
+  // Start heartbeat interval
+  const startHeartbeatInterval = useCallback((sessionId: string) => {
+    // Clear any existing interval
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+    }
+
+    // Send heartbeat every 5 seconds - but use a longer interval to avoid spam
+    heartbeatIntervalRef.current = setInterval(() => {
+      // Get current state values directly from refs or make API call
+      setPlayerState(currentState => {
+        if (!currentState.paused && currentState.sessionId) {
+          // Double-check timing to prevent spam
+          const now = Date.now();
+          const timeSinceLastHeartbeat = now - currentState.lastHeartbeatTime;
+          
+          if (timeSinceLastHeartbeat >= 5000) { // Only send if 5+ seconds have passed
+            sendHeartbeat(currentState.currentTime, sessionId, 'interval');
+          }
+        }
+        return currentState; // Return unchanged state
+      });
+    }, 5000); // Check every 5 seconds
+
+    console.log('💓 Heartbeat interval started (5s)');
+  }, [sendHeartbeat]);
+
+  // Stop heartbeat interval
+  const stopHeartbeatInterval = useCallback(() => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+      console.log('💓 Heartbeat interval stopped');
+    }
+  }, []);
+
+  // Control handlers
+  const handleBackPress = useCallback(async () => {
+    console.log('🔙 Back button pressed');
+    
+    // Send final heartbeat and end session
+    if (playerState.sessionId) {
+      await sendHeartbeat(playerState.currentTime, playerState.sessionId, 'exit');
+      await endSession(playerState.sessionId);
+    }
+    
+    stopHeartbeatInterval();
+    navigation.goBack();
+  }, [navigation, playerState.sessionId, playerState.currentTime, sendHeartbeat, endSession, stopHeartbeatInterval]);
+
+  const togglePlayPause = useCallback(async () => {
     const newPaused = !playerState.paused;
     setPlayerState(prev => ({ ...prev, paused: newPaused }));
-  }, [playerState.paused]);
+    
+    // Send heartbeat on pause/resume
+    if (playerState.sessionId) {
+      const reason = newPaused ? 'pause' : 'resume';
+      await sendHeartbeat(playerState.currentTime, playerState.sessionId, reason);
+    }
+  }, [playerState.paused, playerState.sessionId, playerState.currentTime, sendHeartbeat]);
 
   // Animate seek button
   const animateSeekButton = useCallback((direction: 'forward' | 'backward') => {
@@ -234,14 +357,67 @@ export const VideoPlayerScreen: React.FC = () => {
     }
   }, [playerState.subtitleTracks, loadSubtitleTrack]);
 
+  // Progress percentage
+  const getProgressPercentage = (): number => {
+    return playerState.duration > 0 ? (playerState.currentTime / playerState.duration) * 100 : 0;
+  };
+
+  // Show warning/error feedback
+  const showWarning = useCallback((message: string, duration: number = 3000) => {
+    // Don't show text overlay for seek actions - they have their own animation
+    if (message.includes('Seek')) {
+      return;
+    }
+    
+    setPlayerState(prev => ({ ...prev, warningMessage: message }));
+    // Clear the message after specified duration
+    setTimeout(() => {
+      setPlayerState(prev => ({ ...prev, warningMessage: undefined }));
+    }, duration);
+  }, []);
+
   // Video Event Handlers
-  const onLoad = useCallback((data: OnLoadData) => {
+  const onLoadStart = useCallback(() => {
+    console.log('🚀 Video load started');
+    console.log('📺 Manifest URL:', playout?.mediaURL);
+    console.log('📺 Streaming Protocol:', playout?.streamingProtocol);
+    console.log('📺 DRM Enabled:', playout?.drm);
+    
+    setPlayerState(prev => ({ ...prev, loading: true }));
+    
+    // Set a timeout to detect stalled loading
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+    }
+    
+    loadingTimeoutRef.current = setTimeout(() => {
+      console.error('⏰ Video loading timeout - taking too long to load');
+      console.error('⏰ This might indicate DASH manifest parsing issues');
+      console.error('⏰ Check if the manifest uses SegmentBase (older) vs SegmentTemplate (newer)');
+      
+      // Show timeout warning using showWarning function
+      showWarning('Something went wrong: TIMEOUT - Video took too long to load', 5000);
+      
+      setPlayerState(prev => ({
+        ...prev,
+        loading: false,
+      }));
+    }, 30000); // 30 second timeout
+  }, [playout, showWarning]);
+
+  const onLoad = useCallback(async (data: OnLoadData) => {
     console.log('✅ Video loaded successfully:', {
       duration: data.duration,
       naturalSize: data.naturalSize,
       audioTracks: data.audioTracks.length,
       textTracks: data.textTracks.length,
     });
+    
+    // Clear loading timeout
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
     
     // Use subtitle tracks from playout response instead of video metadata
     const subtitleTracks: SubtitleTrack[] = playout?.subtitleTracks || [];
@@ -253,12 +429,22 @@ export const VideoPlayerScreen: React.FC = () => {
       subtitleTracks,
     }));
     
+    // Create session and send initial heartbeat
+    const sessionId = await createSession();
+    if (sessionId) {
+      // Send start heartbeat
+      await sendHeartbeat(resumeTime, sessionId, 'start');
+      
+      // Start heartbeat interval
+      startHeartbeatInterval(sessionId);
+    }
+    
     // Seek to resume time if provided
     if (resumeTime > 0) {
       console.log(`⏭️ Seeking to resume time: ${resumeTime}s`);
       videoRef.current?.seek(resumeTime);
     }
-  }, [resumeTime, playout]);
+  }, [resumeTime, playout, createSession, sendHeartbeat, startHeartbeatInterval]);
 
   const onProgress = useCallback((data: OnProgressData) => {
     setPlayerState(prev => {
@@ -298,22 +484,48 @@ export const VideoPlayerScreen: React.FC = () => {
   }, []);
 
   const onError = useCallback((error: OnVideoErrorData) => {
-    console.error('❌ Video error:', {
+    __DEV__ && console.error('❌ Video error:', {
       error: error.error,
       errorString: error.error?.errorString,
       errorCode: error.error?.errorCode,
+      errorException: error.error?.errorException,
+      domain: error.error?.domain,
+      localizedDescription: error.error?.localizedDescription,
+      localizedFailureReason: error.error?.localizedFailureReason,
+      localizedRecoverySuggestion: error.error?.localizedRecoverySuggestion,
     });
+    
+    // Format error message as requested
+    const errorCode = error.error?.errorCode || 'UNKNOWN';
+    const errorDetails = error.error?.errorString || 
+                        error.error?.localizedDescription || 
+                        error.error?.localizedFailureReason || 
+                        'Unknown error occurred';
+    
+    const errorMessage = `Something went wrong: ${errorCode} - ${errorDetails}`;
+    
+    // Set error state and show error message
+    setPlayerState(prev => ({
+      ...prev,
+      loading: false,
+      buffering: false,
+      warningMessage: errorMessage,
+    }));
+    
   }, []);
 
-  const onLoadStart = useCallback(() => {
-    console.log('🚀 Video load started');
-    setPlayerState(prev => ({ ...prev, loading: true }));
-  }, []);
-
-  const onEnd = useCallback(() => {
+  const onEnd = useCallback(async () => {
     console.log('🏁 Video playback ended');
     setPlayerState(prev => ({ ...prev, paused: true }));
-  }, []);
+    
+    // Send final heartbeat and end session
+    if (playerState.sessionId) {
+      await sendHeartbeat(playerState.duration, playerState.sessionId, 'end');
+      await endSession(playerState.sessionId);
+    }
+    
+    stopHeartbeatInterval();
+  }, [playerState.sessionId, playerState.duration, sendHeartbeat, endSession, stopHeartbeatInterval]);
 
   // Format time helper
   const formatTime = (seconds: number): string => {
@@ -321,25 +533,6 @@ export const VideoPlayerScreen: React.FC = () => {
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
-
-  // Progress percentage
-  const getProgressPercentage = (): number => {
-    return playerState.duration > 0 ? (playerState.currentTime / playerState.duration) * 100 : 0;
-  };
-
-  // Show remote action feedback
-  const showRemoteAction = useCallback((action: string) => {
-    // Don't show text overlay for seek actions - they have their own animation
-    if (action.includes('Seek')) {
-      return;
-    }
-    
-    setPlayerState(prev => ({ ...prev, lastRemoteAction: action }));
-    // Clear the action after 1 second
-    setTimeout(() => {
-      setPlayerState(prev => ({ ...prev, lastRemoteAction: undefined }));
-    }, 1000);
-  }, []);
 
   // Track focus state for styling
   const [focusedButton, setFocusedButton] = React.useState<string | null>(null);
@@ -368,14 +561,12 @@ export const VideoPlayerScreen: React.FC = () => {
         case 'right':
           // Right arrow - seek forward
           console.log('📺 Calling seekForward');
-          showRemoteAction('Seek Forward +10s');
           seekForward();
           break;
           
         case 'left':
           // Left arrow - seek backward
           console.log('📺 Calling seekBackward');
-          showRemoteAction('Seek Backward -10s');
           seekBackward();
           break;
           
@@ -411,7 +602,7 @@ export const VideoPlayerScreen: React.FC = () => {
     return () => {
       subscription?.remove();
     };
-  }, [togglePlayPause, seekForward, seekBackward, handleBackPress, showRemoteAction]);
+  }, [togglePlayPause, seekForward, seekBackward, handleBackPress]);
 
   // Handle hardware back button
   React.useEffect(() => {
@@ -422,10 +613,51 @@ export const VideoPlayerScreen: React.FC = () => {
     return () => backHandler.remove();
   }, [handleBackPress]);
 
-  // Debug logging
-  // console.log('VideoPlayerScreen - Step 3: Player Controls (RTL-aware)');
-  // console.log('Player State:', playerState);
-  // console.log('Direction:', { isRTL });
+  // Cleanup on unmount - ONLY run once on mount/unmount
+  React.useEffect(() => {
+    return () => {
+      console.log('💓 Component unmounting - cleaning up session');
+      // Cleanup heartbeat interval
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+      
+      // Cleanup loading timeout
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+      
+      // End session if exists using ref values
+      const { sessionId, currentTime } = sessionCleanupRef.current;
+      if (sessionId) {
+        console.log(`💓 Sending final heartbeat and ending session: ${sessionId}`);
+        // Fire and forget cleanup
+        const heartbeatRequest: HeartbeatRequest = {
+          contentId,
+          progressInSeconds: currentTime,
+          sessionId,
+        };
+        
+        streamingAPI.sendHeartbeat(heartbeatRequest).then(() => {
+          streamingAPI.endSession(sessionId);
+        }).catch(error => {
+          console.error('💓 Cleanup error:', error);
+          // Still try to end session even if heartbeat fails
+          streamingAPI.endSession(sessionId);
+        });
+      }
+    };
+  }, [contentId]); // Only contentId dependency
+
+  // Update cleanup ref whenever session or time changes
+  React.useEffect(() => {
+    sessionCleanupRef.current = {
+      sessionId: playerState.sessionId,
+      currentTime: playerState.currentTime,
+    };
+  }, [playerState.sessionId, playerState.currentTime]);
 
   // Show loading screen while fetching playout data
   if (playoutLoading) {
@@ -451,6 +683,7 @@ export const VideoPlayerScreen: React.FC = () => {
       </View>
     );
   }
+  console.log('Which media the player is using', playout.mediaURL);
 
   // Main video player screen
   return (
@@ -464,7 +697,11 @@ export const VideoPlayerScreen: React.FC = () => {
           uri: playout.mediaURL,
           headers: {
             'User-Agent': 'ThamaneyahStreamingApp/1.0',
+            'Accept': 'application/dash+xml,application/vnd.ms-sstr+xml,application/x-mpegURL,video/mp4,*/*',
+            'Accept-Encoding': 'gzip, deflate',
+            'Cache-Control': 'no-cache',
           },
+          type: 'mpd', // Explicitly specify DASH format
         }}
         style={styles.video}
         resizeMode={ResizeMode.CONTAIN}
@@ -478,6 +715,7 @@ export const VideoPlayerScreen: React.FC = () => {
         mixWithOthers="duck"
         repeat={false}
         reportBandwidth={true}
+        maxBitRate={2400000} // Limit to 720p for TV compatibility
 
         onLoadStart={onLoadStart}
         onLoad={onLoad}
@@ -506,9 +744,9 @@ export const VideoPlayerScreen: React.FC = () => {
       )}
 
       {/* Remote Action Feedback */}
-      {playerState.lastRemoteAction && (
-        <View style={styles.remoteActionOverlay}>
-          <Text style={styles.remoteActionText}>{playerState.lastRemoteAction}</Text>
+      {playerState.warningMessage && (
+        <View style={styles.warningOverlay}>
+          <Text style={styles.warningText}>{playerState.warningMessage}</Text>
         </View>
       )}
 
@@ -558,7 +796,7 @@ export const VideoPlayerScreen: React.FC = () => {
       />
 
       {/* Player Controls */}
-      <View style={styles.controlsContainer}>
+      {!playerState.warningMessage && <View style={styles.controlsContainer}>
         {/* Top Bar with Gradient */}
         <LinearGradient
           colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0)']}
@@ -566,15 +804,14 @@ export const VideoPlayerScreen: React.FC = () => {
           end={{ x: 0, y: 1 }}
           style={styles.topBarGradient}
         >
-          <View style={[styles.topBar, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Top bar always LTR layout, but title text can be RTL-aligned */}
+          <View style={styles.topBar}>
             <Text style={[styles.videoTitle, { 
-              marginLeft: isRTL ? 0 : 16, 
-              marginRight: isRTL ? 16 : 0,
               textAlign: isRTL ? 'right' : 'left'
             }]} numberOfLines={1}>
               {contentTitle}
             </Text>
-            {/* Only show subtitle button if there are subtitle tracks */}
+            {/* Only show subtitle button if there are subtitle tracks - Always on the right */}
             {playerState.subtitleTracks.length > 0 && (
               <Pressable 
                 style={[
@@ -608,9 +845,10 @@ export const VideoPlayerScreen: React.FC = () => {
              onFocus={() => setFocusedButton('controls')}
              onBlur={() => setFocusedButton(null)}
            >
-          <View style={[styles.progressContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Progress Container - Always LTR layout */}
+          <View style={styles.progressContainer}>
             <Text style={styles.timeText}>
-              {isRTL ? formatTime(playerState.duration) : formatTime(playerState.currentTime)}
+              {formatTime(playerState.currentTime)}
             </Text>
             <View style={styles.progressBar}>
               <View
@@ -621,35 +859,38 @@ export const VideoPlayerScreen: React.FC = () => {
               />
             </View>
             <Text style={styles.timeText}>
-              {isRTL ? formatTime(playerState.currentTime) : formatTime(playerState.duration)}
+              {formatTime(playerState.duration)}
             </Text>
           </View>
 
-          {/* Control Buttons */}
-          <View style={[styles.controlButtons, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Control Buttons - Always LTR layout */}
+          <View style={styles.controlButtons}>
+            {/* Rewind Button - Always on the left */}
             <TouchableOpacity 
               style={[
                 styles.controlButton,
                 focusedButton === 'seekBackward' && styles.focusedButton
               ]} 
-              onPress={isRTL ? seekForward : seekBackward}
+              onPress={seekBackward}
               onFocus={() => setFocusedButton('seekBackward')}
               onBlur={() => setFocusedButton(null)}
             >
               <Animated.View
                 style={{
                   transform: [
-                    { translateX: isRTL ? seekForwardAnimTranslate : seekBackwardAnimTranslate },
+                    { translateX: seekBackwardAnimTranslate },
                   ],
                 }}
               >
                 <Icon 
-                  name={isRTL ? 'play-forward' : 'play-back'} 
+                  name="play-back" 
                   size={32} 
                   color="#fff" 
                 />
               </Animated.View>
             </TouchableOpacity>
+            
+            {/* Play/Pause Button - Always in the center */}
             <TouchableOpacity 
               style={[
                 focusedButton === 'controls' || focusedButton === 'playPause' ? styles.playButtonFocused : styles.playButton,
@@ -665,24 +906,26 @@ export const VideoPlayerScreen: React.FC = () => {
                 color="#fff" 
               />
             </TouchableOpacity>
+            
+            {/* Forward Button - Always on the right */}
             <TouchableOpacity 
               style={[
                 styles.controlButton,
                 focusedButton === 'seekForward' && styles.focusedButton
               ]} 
-              onPress={isRTL ? seekBackward : seekForward}
+              onPress={seekForward}
               onFocus={() => setFocusedButton('seekForward')}
               onBlur={() => setFocusedButton(null)}
             >
               <Animated.View
                 style={{
                   transform: [
-                    { translateX: isRTL ? seekBackwardAnimTranslate : seekForwardAnimTranslate },
+                    { translateX: seekForwardAnimTranslate },
                   ],
                 }}
               >
                 <Icon 
-                  name={isRTL ? 'play-back' : 'play-forward'} 
+                  name="play-forward" 
                   size={32} 
                   color="#fff" 
                 />
@@ -691,7 +934,7 @@ export const VideoPlayerScreen: React.FC = () => {
           </View>
           </Pressable>
         </LinearGradient>
-      </View>
+      </View>}
     </View>
   );
 };
@@ -862,24 +1105,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 24,
   },
-  remoteActionOverlay: {
+  warningOverlay: {
     position: 'absolute',
     top: '50%',
-    left: '50%',
-    transform: [{ translateX: -100 }, { translateY: -25 }],
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    left: '10%',
+    // transform: [{ translateX: -150 }, { translateY: -40 }],
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: theme.colors.primary,
+    width:'80%',
+    zIndex: 1000,
   },
-  remoteActionText: {
+  warningText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
-    minWidth: 200,
+    minWidth: 300,
+    lineHeight: 24,
   },
 
   // Subtitle Display Styles

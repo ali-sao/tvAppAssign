@@ -9,7 +9,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "Fury",
     description: "April 1945. As the Allies make their final push in the European Theatre, a battle-hardened Army sergeant named Wardaddy commands a Sherman tank and his five-man crew on a deadly mission behind enemy lines.",
     posterImage: "https://image.tmdb.org/t/p/w500/pfte7wdMobMF4CVHuOxyu6oqeeA.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://i.pinimg.com/736x/e5/26/5b/e5265b4302f8ac19675000b8bd5fb586.jpg",
     type: "movie",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/pft8dLdZgWS3qz4PL8M4KKtlU8w.jpg",
     durationInSeconds: 8040, // 2h 14m
@@ -25,7 +25,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "The Big Bang Theory",
     description: "A woman who moves into an apartment across the hall from two brilliant but socially awkward physicists shows them how little they know about life outside of the laboratory.",
     posterImage: "https://image.tmdb.org/t/p/w500/ooBGRQBdbGzBxAVfExiO8r7kloA.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://www.vhv.rs/dpng/d/594-5941666_big-bang-theory-hd-png-download.png",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/56v2KjBlU4XaOv9rVYEQypROD7P.jpg",
     durationInSeconds: 1320, // 22m per episode
@@ -41,7 +41,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "Stranger Things",
     description: "When a young boy disappears, his mother, a police chief and his friends must confront terrifying supernatural forces in order to get him back.",
     posterImage: "https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://i.pinimg.com/564x/e0/ed/f6/e0edf62ad959221627229bda43c05e52.jpg",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/56v2KjBlU4XaOv9rVYEQypROD7P.jpg",
     durationInSeconds: 3000, // 50m per episode
@@ -57,7 +57,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "Brooklyn Nine-Nine",
     description: "Comedy series following the exploits of Det. Jake Peralta and his diverse, lovable colleagues as they police the NYPD's 99th Precinct.",
     posterImage: "https://image.tmdb.org/t/p/w500/hgRMSOt7a1b8qyQR68vUixJPang.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://img.favpng.com/16/6/6/brooklyn-nine-nine-png-favpng-yFUdP9hKF30w41kw4Kb7WL9A2.jpg",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/ncC9ZgZuKOdaVm7yXinUn26Qyok.jpg",
     durationInSeconds: 1320, // 22m per episode
@@ -73,7 +73,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "The Mandalorian",
     description: "The travels of a lone bounty hunter in the outer reaches of the galaxy, far from the authority of the New Republic.",
     posterImage: "https://image.tmdb.org/t/p/w500/sWgBv7LV2PRoQgkxwlibdGXKz1S.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://pngimg.com/d/mandalorian_PNG1.png",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/o7qi7v4m7bEEvX7RsUcU8Vxmz2X.jpg",
     durationInSeconds: 2400, // 40m per episode
@@ -89,7 +89,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "Deadpool",
     description: "A wisecracking mercenary gets experimented on and becomes immortal but ugly, and sets out to track down the man who ruined his looks.",
     posterImage: "https://image.tmdb.org/t/p/w500/9X7YweCJw3q8Mcf6GadxReFEksM.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://e7.pngegg.com/pngimages/917/351/png-clipart-deadpool-deadpool-logo-at-the-movies-deadpool-thumbnail.png",
     type: "movie",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/en971MEXui9diirXlogOrPKmsEn.jpg",
     durationInSeconds: 6480, // 1h 48m
@@ -105,7 +105,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "Game of Thrones",
     description: "Nine noble families fight for control over the mythical lands of Westeros, while an ancient enemy returns after being dormant for millennia.",
     posterImage: "https://image.tmdb.org/t/p/w500/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://i.pinimg.com/736x/77/87/aa/7787aa2f928c61a45279a93f10ad0cf7.jpg",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
     durationInSeconds: 3600, // 60m per episode
@@ -121,7 +121,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "Avengers: Endgame",
     description: "After the devastating events of Infinity War, the Avengers assemble once more to reverse Thanos' actions and restore balance to the universe.",
     posterImage: "https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://upload.wikimedia.org/wikipedia/commons/4/4d/Avengers_endgame_logo.png",
     type: "movie",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg",
     durationInSeconds: 10860, // 3h 1m
@@ -137,7 +137,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "The Office",
     description: "A mockumentary on a group of typical office workers, where the workday consists of ego clashes, inappropriate behavior, and tedium.",
     posterImage: "https://image.tmdb.org/t/p/w500/7DJKHzAi83BmQrWLrYYOqcoKfhR.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://image.tmdb.org/t/p/original/9h5aA5FhdKSkpLI0JvD4NsJZqIh.png",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/qWnJzyZhyy17WgJZGtAf4bqfoP5.jpg",
     durationInSeconds: 1320, // 22m per episode
@@ -153,7 +153,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "Breaking Bad",
     description: "A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling methamphetamine to secure his family's future.",
     posterImage: "https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://www.liblogo.com/img-logo/sml/br3044bd6b-breaking-bad-logo-breaking-bad-tv-series-logo-vector-in-eps-ai-cdr-free-download.webp",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
     durationInSeconds: 2700, // 45m per episode
@@ -169,7 +169,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "Friends",
     description: "Follows the personal and professional lives of six twenty to thirty-something-year-old friends living in Manhattan.",
     posterImage: "https://image.tmdb.org/t/p/w500/f496cm9enuEsZkSPzCwnTESEK5s.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://toppng.com/uploads/preview/friendstv-club-friends-logo-white-11563064051qpcqpvese2.png",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/56v2KjBlU4XaOv9rVYEQypROD7P.jpg",
     durationInSeconds: 1320, // 22m per episode
@@ -185,7 +185,7 @@ export const generateMockContent = (): ContentEntity[] => [
     title: "Inception",
     description: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
     posterImage: "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
-    logoTitleImage:"",
+    logoTitleImage:"https://www.pngplay.com/wp-content/uploads/12/Inception-PNG-Photos.png",
     type: "movie",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/s3TBrRGB1iav7gFOCNx3H31MoES.jpg",
     durationInSeconds: 8880, // 2h 28m
@@ -290,7 +290,7 @@ const getRealStreamingUrls = (contentId: number, isDrm: boolean) => {
       {
         // Live test stream (Akamai)
         hls: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8",
-        dash: "https://dash.akamaized.net/dash264/TestCases/2a/qualcomm/1/MultiResMPEG2.mpd"
+        dash: "https://cdn.bitmovin.com/content/assets/art-of-motion-dash-hls-progressive/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd"
       }
     ];
     
