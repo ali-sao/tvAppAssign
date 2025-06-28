@@ -8,6 +8,8 @@ import {
   Animated,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useDirection } from '../../contexts/DirectionContext';
 import { useMenu } from '../../contexts/MenuContext';
 import { theme } from '../../constants/theme';
@@ -27,6 +29,9 @@ interface SideMenuProps {
   onHomePress: () => void;
   onMyListPress: () => void;
   onContinueWatchingPress: () => void;
+  onBrowsePress?: () => void;
+  onSearchPress?: () => void;
+  onDownloadsPress?: () => void;
 }
 
 export const SideMenu: React.FC<SideMenuProps> = ({
@@ -34,6 +39,9 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   onHomePress,
   onMyListPress,
   onContinueWatchingPress,
+  onBrowsePress,
+  onSearchPress,
+  onDownloadsPress,
 }) => {
   const route = useRoute();
   const { isRTL } = useDirection();
@@ -56,32 +64,46 @@ export const SideMenu: React.FC<SideMenuProps> = ({
 
   const menuItems: MenuItem[] = [
     {
-      id: 'profile',
-      icon: '👤',
-      label: 'Profile & Settings',
-      onPress: onProfilePress,
-      // No routeName - this is a modal/action, not a route
-    },
-    {
       id: 'home',
-      icon: '🏠',
+      icon: 'home-outline',
       label: 'Home',
       onPress: onHomePress,
       routeName: 'Home',
     },
     {
+      id: 'browse',
+      icon: 'grid-outline',
+      label: 'Browse',
+      onPress: onBrowsePress || (() => {}),
+      routeName: 'Browse',
+    },
+    {
+      id: 'search',
+      icon: 'search-outline',
+      label: 'Search',
+      onPress: onSearchPress || (() => {}),
+      routeName: 'Search',
+    },
+    {
       id: 'mylist',
-      icon: '❤️',
+      icon: 'bookmark-outline',
       label: 'My List',
       onPress: onMyListPress,
       routeName: 'MyList',
     },
     {
       id: 'continue',
-      icon: '▶️',
+      icon: 'play-circle-outline',
       label: 'Continue Watching',
       onPress: onContinueWatchingPress,
-      // No routeName - this might be a modal or filtered view
+      routeName: 'ContinueWatching',
+    },
+    {
+      id: 'profile',
+      icon: 'person-circle-outline',
+      label: 'Profile & Settings',
+      onPress: onProfilePress,
+      // No routeName - this is a modal/action, not a route
     },
   ];
 
@@ -147,62 +169,76 @@ export const SideMenu: React.FC<SideMenuProps> = ({
       isRTL ? styles.containerRTL : styles.containerLTR,
       { width: menuWidthAnim }
     ]}>
-      <View style={styles.menuContent}>
-        {/* Menu Items */}
-        <View style={styles.menuItems}>
-          {menuItems.map((item, index) => (
-            <Pressable
-              key={item.id}
-              style={[
-                styles.menuItem,
-                focusedIndex === index && styles.menuItemFocused,
-                isMenuItemActive(item) && styles.menuItemActive,
-                isMenuItemActive(item) && isRTL && styles.menuItemActiveRTL,
-                isRTL && styles.menuItemRTL
-              ]}
-              onPress={item.onPress}
-              onFocus={() => handleFocus(index)}
-              onBlur={handleBlur}
-            >
-              <Text style={[
-                styles.menuIcon,
-                isRTL && styles.menuIconRTL,
-                isMenuItemActive(item) && styles.menuIconActive
-              ]}>
-                {item.icon}
-              </Text>
-              {showText && (
-                <Text style={[
-                  styles.menuLabel,
-                  isRTL && styles.menuLabelRTL,
-                  focusedIndex === index && styles.menuLabelFocused,
-                  isMenuItemActive(item) && styles.menuLabelActive,
-                ]}>
-                  {item.label}
-                </Text>
-              )}
-            </Pressable>
-          ))}
+      <LinearGradient
+        colors={[
+          'rgba(0, 0, 0, 1)', 
+          'rgba(0, 0, 0, 1)', 
+          'rgba(0, 0, 0, 0.8)', 
+          'rgba(0, 0, 0, 0.1)'
+        ]}
+        locations={[0, 0.65, 0.85, 1]}
+        start={isRTL ? { x: 1, y: 0 } : { x: 0, y: 0 }}
+        end={isRTL ? { x: 0, y: 0 } : { x: 1, y: 0 }}
+        style={styles.gradientContainer}
+      >
+        <View style={styles.menuContent}>
+          {/* Menu Items */}
+          <View style={styles.menuItems}>
+            {menuItems.map((item, index) => {
+              const isFocused = focusedIndex === index;
+              const isActive = isMenuItemActive(item);
+              
+              return (
+                <Pressable
+                  key={item.id}
+                  style={[
+                    styles.menuItem,
+                    isRTL && styles.menuItemRTL
+                  ]}
+                  onPress={item.onPress}
+                  onFocus={() => handleFocus(index)}
+                  onBlur={handleBlur}
+                >
+                  {isFocused && (
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0)']}
+                      start={isRTL ? { x: 1, y: 0 } : { x: 0, y: 0 }}
+                      end={isRTL ? { x: 0, y: 0 } : { x: 1, y: 0 }}
+                      style={styles.menuItemFocusedGradient}
+                    />
+                  )}
+                                  <Icon
+                    name={item.icon}
+                    size={24}
+                    style={[
+                      styles.menuIcon,
+                      isRTL && styles.menuIconRTL,
+                      isActive && styles.menuIconActive,
+                      isFocused && styles.menuIconFocused
+                    ]}
+                  />
+                  {showText && (
+                    <Text style={[
+                      styles.menuLabel,
+                      isRTL && styles.menuLabelRTL,
+                      isActive && styles.menuLabelActive,
+                      isFocused && styles.menuLabelFocused,
+                    ]}>
+                      {item.label}
+                    </Text>
+                  )}
+                              </Pressable>
+              );
+            })}
+            </View>
         </View>
-
-        {/* Direction Indicator */}
-        <View style={styles.footer}>
-          {showText && (
-            <Text style={[
-              styles.directionIndicator,
-              isRTL && styles.directionIndicatorRTL
-            ]}>
-              {isRTL ? 'RTL →' : '← LTR'}
-            </Text>
-          )}
-        </View>
-      </View>
+      </LinearGradient>
     </Animated.View>
   );
 };
 
-const MENU_EXPANDED_WIDTH = 280;
-const MENU_COLLAPSED_WIDTH = 80;
+const MENU_EXPANDED_WIDTH = 380;
+const MENU_COLLAPSED_WIDTH = 76;
 
 const styles = StyleSheet.create({
   container: {
@@ -210,12 +246,12 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     zIndex: 1000,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
-    borderColor: theme.colors.surface,
+  },
+  gradientContainer: {
+    flex: 1,
   },
   containerLTR: {
     left: 0,
-    borderRightWidth: 2,
   },
   containerRTL: {
     right: 0,
@@ -225,80 +261,63 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: theme.spacing.xl,
   },
-  header: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.surface,
-  },
-  headerText: {
-    fontSize: theme.typography.heading.fontSize,
-    fontWeight: theme.typography.heading.fontWeight as any,
-    color: theme.colors.text,
-    textAlign: 'left',
-  },
-  headerTextRTL: {
-    textAlign: 'right',
-  },
   menuItems: {
     flex: 1,
     paddingTop: theme.spacing.lg,
   },
   menuItem: {
     position: 'relative',
-    height: 60,
-    marginVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.sm,
+    height: 56,
+    // marginVertical: theme.spacing.xs,
+    marginHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
     backgroundColor: 'transparent',
     justifyContent: 'center',
   },
   menuItemRTL: {
     // RTL handled by icon and label positioning
   },
-  menuItemFocused: {
-    backgroundColor: theme.colors.primary,
-  },
-  menuItemActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderLeftWidth: 3,
-    borderLeftColor: theme.colors.accent,
-  },
-  menuItemActiveRTL: {
-    borderLeftWidth: 0,
-    borderRightWidth: 3,
-    borderRightColor: theme.colors.accent,
+  menuItemFocusedGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: theme.borderRadius.md,
   },
   menuIcon: {
     position: 'absolute',
-    fontSize: 24,
-    textAlign: 'center',
-    width: 32,
-    left: 24, // Fixed position from left
+    left: 15, // Fixed position from left
     top: '50%',
     transform: [{ translateY: -12 }], // Center vertically
+    color: theme.colors.textSecondary,
   },
   menuIconRTL: {
     left: undefined,
-    right: 24, // Fixed position from right in RTL
+    right: 20, // Fixed position from right in RTL
   },
   menuIconActive: {
     color: theme.colors.accent,
   },
+  menuIconFocused: {
+    color: '#FFFFFF',
+  },
   menuLabel: {
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.text,
-    marginLeft: 72, // Leave space for icon
+    marginLeft: 56, // Leave space for icon
     marginRight: theme.spacing.md,
-    lineHeight: 24,
+    lineHeight: 20,
+    fontWeight: '500',
   },
   menuLabelRTL: {
     textAlign: 'right',
     marginLeft: theme.spacing.md,
-    marginRight: 72, // Leave space for icon in RTL
+    marginRight: 56, // Leave space for icon in RTL
   },
   menuLabelFocused: {
     fontWeight: '600',
-    color: theme.colors.background,
+    color: '#FFFFFF',
   },
   menuLabelActive: {
     color: theme.colors.accent,
