@@ -15,7 +15,7 @@ export const generateMockContent = (): ContentEntity[] => [
     availableLanguages: ["English", "Spanish", "French", "German", "Arabic"],
     contentRating: "R",
     tags: ["War", "Drama", "Action", "Historical"],
-    drm: true // R-rated content requires DRM
+    drm: false
   },
   {
     id: 2,
@@ -45,7 +45,7 @@ export const generateMockContent = (): ContentEntity[] => [
     availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic"],
     contentRating: "TV-14",
     tags: ["Sci-Fi", "Horror", "Drama", "Supernatural", "80s"],
-    drm: true // Premium Netflix content
+    drm: false // Premium Netflix content
   },
   {
     id: 4,
@@ -75,7 +75,7 @@ export const generateMockContent = (): ContentEntity[] => [
     availableLanguages: ["English", "Spanish", "French", "German", "Japanese", "Arabic"],
     contentRating: "TV-PG",
     tags: ["Sci-Fi", "Action", "Adventure", "Star Wars", "Western"],
-    drm: true // Premium Disney+ content
+    drm: false // Premium Disney+ content
   },
   {
     id: 6,
@@ -90,7 +90,7 @@ export const generateMockContent = (): ContentEntity[] => [
     availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic"],
     contentRating: "R",
     tags: ["Action", "Comedy", "Superhero", "Marvel", "Anti-Hero"],
-    drm: true // R-rated content requires DRM
+    drm: false // R-rated content requires DRM
   },
   {
     id: 7,
@@ -105,7 +105,7 @@ export const generateMockContent = (): ContentEntity[] => [
     availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic", "Mandarin"],
     contentRating: "TV-MA",
     tags: ["Fantasy", "Drama", "Political", "Medieval", "Epic"],
-    drm: true // TV-MA content requires DRM
+    drm: false // TV-MA content requires DRM
   },
   {
     id: 8,
@@ -120,7 +120,7 @@ export const generateMockContent = (): ContentEntity[] => [
     availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic", "Mandarin", "Japanese"],
     contentRating: "PG-13",
     tags: ["Action", "Adventure", "Superhero", "Marvel", "Epic"],
-    drm: true // Premium movie content
+    drm: false // Premium movie content
   },
   {
     id: 9,
@@ -150,7 +150,7 @@ export const generateMockContent = (): ContentEntity[] => [
     availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic"],
     contentRating: "TV-MA",
     tags: ["Crime", "Drama", "Thriller", "Dark", "Antihero"],
-    drm: true // TV-MA content requires DRM
+    drm: false // TV-MA content requires DRM
   },
   {
     id: 11,
@@ -180,7 +180,7 @@ export const generateMockContent = (): ContentEntity[] => [
     availableLanguages: ["English", "Spanish", "French", "German", "Japanese", "Arabic", "Mandarin"],
     contentRating: "PG-13",
     tags: ["Sci-Fi", "Thriller", "Action", "Mind-bending", "Heist"],
-    drm: true // Premium movie content
+    drm: false // Premium movie content
   }
 ];
 
@@ -233,6 +233,59 @@ export const filterContentByType = (content: ContentEntity[], type?: ContentEnti
   return content.filter(item => item.type === type);
 };
 
+// Real streaming URLs for testing
+const getRealStreamingUrls = (contentId: number, isDrm: boolean) => {
+  // For DRM content, we'll use publicly available test streams
+  // For non-DRM content, we'll use reliable public test streams
+  
+  if (isDrm) {
+    // Use Axinom test vectors for DRM content (these require proper license handling)
+    return {
+      hls: {
+        clear: "https://media.axprod.net/TestVectors/Cmaf/clear_1080p_h264/manifest.m3u8",
+        fairplay: "https://media.axprod.net/TestVectors/Cmaf/protected_1080p_h264_cbcs/manifest.m3u8"
+      },
+      dash: {
+        clear: "https://media.axprod.net/TestVectors/Cmaf/clear_1080p_h264/manifest.mpd",
+        widevine: "https://media.axprod.net/TestVectors/Cmaf/protected_1080p_h264_cbcs/manifest.mpd"
+      }
+    };
+  } else {
+    // Use various public test streams for non-DRM content
+    const publicStreams = [
+      {
+        // Apple's bipbop test stream
+        hls: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8",
+        dash: "https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd"
+      },
+      {
+        // Tears of Steel - Unified Streaming
+        hls: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+        dash: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.mpd"
+      },
+      {
+        // Big Buck Bunny - Various sources
+        hls: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        dash: "https://dash.akamaized.net/dash264/TestCases/1a/qualcomm/1/MultiRate.mpd"
+      },
+      {
+        // Sintel test stream
+        hls: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
+        dash: "https://bitdash-a.akamaihd.net/content/sintel/sintel.mpd"
+      },
+      {
+        // Live test stream (Akamai)
+        hls: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8",
+        dash: "https://dash.akamaized.net/dash264/TestCases/2a/qualcomm/1/MultiResMPEG2.mpd"
+      }
+    ];
+    
+    // Select stream based on content ID to provide variety
+    const streamIndex = (contentId - 1) % publicStreams.length;
+    return publicStreams[streamIndex];
+  }
+};
+
 // Generate playout data for a specific content ID
 export const generatePlayoutDataForContent = (contentId: number): any | null => {
   const mockContent = generateMockContent();
@@ -242,19 +295,22 @@ export const generatePlayoutDataForContent = (contentId: number): any | null => 
     return null;
   }
 
+  // Get real streaming URLs based on content DRM status
+  const streamingUrls = getRealStreamingUrls(contentId, content.drm);
+
   return {
-    // Base streaming URLs - always generate both clear and DRM URLs
+    // Real streaming URLs
     hls: {
-      clear: `https://streaming.thamaneyah.com/hls/${content.id}/master.m3u8`,
-      fairplay: `https://streaming.thamaneyah.com/hls/fairplay/${content.id}/master.m3u8`
+      clear: streamingUrls.hls,
+      fairplay: streamingUrls.hls // For testing, use same URL (would be different in production)
     },
     dash: {
-      clear: `https://streaming.thamaneyah.com/dash/${content.id}/manifest.mpd`,
-      widevine: `https://streaming.thamaneyah.com/dash/widevine/${content.id}/manifest.mpd`
+      clear: streamingUrls.dash,
+      widevine: streamingUrls.dash // For testing, use same URL (would be different in production)
     },
     smoothStreaming: {
-      clear: `https://streaming.thamaneyah.com/smooth/${content.id}/manifest`,
-      playready: `https://streaming.thamaneyah.com/smooth/playready/${content.id}/manifest`
+      clear: `https://test.playready.microsoft.com/smoothstreaming/SSWSS720H264/SuperSpeedway_720.ism/manifest`,
+      playready: `https://test.playready.microsoft.com/smoothstreaming/SSWSS720H264/SuperSpeedway_720.ism/manifest`
     },
     
     // DRM configuration - use content.drm field
