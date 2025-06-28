@@ -10,7 +10,10 @@ import {
   TouchableOpacity,
   BackHandler,
   TVEventHandler,
+  Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Video, { 
@@ -40,6 +43,7 @@ interface PlayerState {
   buffering: boolean;
   muted: boolean;
   lastRemoteAction?: string;
+  seekDirection?: 'forward' | 'backward' | null;
 }
 
 export const VideoPlayerScreen: React.FC = () => {
@@ -50,6 +54,10 @@ export const VideoPlayerScreen: React.FC = () => {
   
   const videoRef = useRef<VideoRef>(null);
   
+  // Animation refs for seek buttons
+  const seekBackwardAnimTranslate = useRef(new Animated.Value(0)).current;
+  const seekForwardAnimTranslate = useRef(new Animated.Value(0)).current;
+  
   // Player state
   const [playerState, setPlayerState] = useState<PlayerState>({
     paused: false, // Start playing
@@ -59,6 +67,7 @@ export const VideoPlayerScreen: React.FC = () => {
     buffering: false,
     muted: false,
     lastRemoteAction: undefined,
+    seekDirection: null,
   });
   
   // Prepare playout request
@@ -80,23 +89,75 @@ export const VideoPlayerScreen: React.FC = () => {
 
   const togglePlayPause = useCallback(() => {
     const newPaused = !playerState.paused;
-    console.log(`${newPaused ? '⏸️' : '▶️'} ${newPaused ? 'Pausing' : 'Playing'} video`);
     setPlayerState(prev => ({ ...prev, paused: newPaused }));
   }, [playerState.paused]);
 
+  // Animate seek button
+  const animateSeekButton = useCallback((direction: 'forward' | 'backward') => {
+    const translateAnim = direction === 'forward' ? seekForwardAnimTranslate : seekBackwardAnimTranslate;
+    const translateValue = direction === 'forward' ? 15 : -15;
+    
+    console.log(`🎬 Starting ${direction} animation`);
+    
+    // Stop any existing animation on this button
+    translateAnim.stopAnimation();
+    
+    // Reset to initial position
+    translateAnim.setValue(0);
+    
+    // Set seek direction state
+    setPlayerState(prev => ({ ...prev, seekDirection: direction }));
+    
+    // Quick snap animation - move then snap back
+    Animated.sequence([
+      Animated.timing(translateAnim, {
+        toValue: translateValue,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start((finished) => {
+      console.log(`🎬 ${direction} animation finished:`, finished);
+      // Clear seek direction after animation
+      setPlayerState(prev => ({ ...prev, seekDirection: null }));
+    });
+  }, [seekForwardAnimTranslate, seekBackwardAnimTranslate]);
+
   const seekBackward = useCallback(() => {
+    console.log(`⏪ seekBackward called - current animation state:`, playerState.seekDirection);
+    
+    // Prevent multiple calls during animation
+    if (playerState.seekDirection === 'backward') {
+      console.log('⏪ Ignoring backward seek - already animating');
+      return;
+    }
+    
     const newTime = Math.max(playerState.currentTime - 10, 0);
     console.log(`⏪ Seeking backward to ${Math.floor(newTime)}s`);
     videoRef.current?.seek(newTime);
     setPlayerState(prev => ({ ...prev, currentTime: newTime }));
-  }, [playerState.currentTime]);
+    animateSeekButton('backward');
+  }, [playerState.currentTime, playerState.seekDirection, animateSeekButton]);
 
   const seekForward = useCallback(() => {
+    console.log(`⏩ seekForward called - current animation state:`, playerState.seekDirection);
+    
+    // Prevent multiple calls during animation
+    if (playerState.seekDirection === 'forward') {
+      console.log('⏩ Ignoring forward seek - already animating');
+      return;
+    }
+    
     const newTime = Math.min(playerState.currentTime + 10, playerState.duration);
     console.log(`⏩ Seeking forward to ${Math.floor(newTime)}s`);
     videoRef.current?.seek(newTime);
     setPlayerState(prev => ({ ...prev, currentTime: newTime }));
-  }, [playerState.currentTime, playerState.duration]);
+    animateSeekButton('forward');
+  }, [playerState.currentTime, playerState.duration, playerState.seekDirection, animateSeekButton]);
 
   const toggleMute = useCallback(() => {
     const newMuted = !playerState.muted;
@@ -178,6 +239,11 @@ export const VideoPlayerScreen: React.FC = () => {
 
   // Show remote action feedback
   const showRemoteAction = useCallback((action: string) => {
+    // Don't show text overlay for seek actions - they have their own animation
+    if (action.includes('Seek')) {
+      return;
+    }
+    
     setPlayerState(prev => ({ ...prev, lastRemoteAction: action }));
     // Clear the action after 1 second
     setTimeout(() => {
@@ -202,7 +268,7 @@ export const VideoPlayerScreen: React.FC = () => {
         case 'select':
           // Enter/Select button - toggle play/pause
           console.log('📺 Calling togglePlayPause');
-          showRemoteAction('Play/Pause');
+          // showRemoteAction('Play/Pause');
           togglePlayPause();
           break;
           
@@ -223,19 +289,16 @@ export const VideoPlayerScreen: React.FC = () => {
         case 'up':
           // Up arrow - could be used for volume or other controls
           console.log('📺 Up pressed');
-          showRemoteAction('Up (Reserved)');
           break;
           
         case 'down':
           // Down arrow - could be used for volume or other controls
           console.log('📺 Down pressed');
-          showRemoteAction('Down (Reserved)');
           break;
           
         case 'menu':
           // Menu button - go back
           console.log('📺 Calling handleBackPress');
-          showRemoteAction('Back');
           handleBackPress();
           break;
           
@@ -354,8 +417,14 @@ export const VideoPlayerScreen: React.FC = () => {
         {/* Top Bar */}
         <View style={[styles.topBar, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+            <Icon 
+              name="chevron-back" 
+              size={24} 
+              color="#fff" 
+              style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }}
+            />
             <Text style={styles.backButtonText}>
-              {isRTL ? 'رجوع ←' : '← Back'}
+              {isRTL ? 'رجوع' : 'Back'}
             </Text>
           </TouchableOpacity>
           <Text style={[styles.videoTitle, { 
@@ -366,14 +435,21 @@ export const VideoPlayerScreen: React.FC = () => {
             {contentTitle}
           </Text>
           <TouchableOpacity style={styles.muteButton} onPress={toggleMute}>
-            <Text style={styles.muteButtonText}>
-              {playerState.muted ? '🔇' : '🔊'}
-            </Text>
+            <Icon 
+              name={playerState.muted ? 'volume-mute' : 'volume-high'} 
+              size={24} 
+              color="#fff" 
+            />
           </TouchableOpacity>
         </View>
 
-        {/* Bottom Bar */}
-        <View style={styles.bottomBar}>
+        {/* Bottom Controls with Gradient */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.01)', 'rgba(0,0,0,0.4)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.bottomControlsGradient}
+        >
           {/* Progress Bar */}
           <View style={[styles.progressContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Text style={styles.timeText}>
@@ -395,31 +471,44 @@ export const VideoPlayerScreen: React.FC = () => {
           {/* Control Buttons */}
           <View style={[styles.controlButtons, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity style={styles.controlButton} onPress={isRTL ? seekForward : seekBackward}>
-              <Text style={styles.controlButtonText}>{isRTL ? '⏩' : '⏪'}</Text>
+              <Animated.View
+                style={{
+                  transform: [
+                    { translateX: isRTL ? seekForwardAnimTranslate : seekBackwardAnimTranslate },
+                  ],
+                }}
+              >
+                <Icon 
+                  name={isRTL ? 'play-forward' : 'play-back'} 
+                  size={32} 
+                  color="#fff" 
+                />
+              </Animated.View>
             </TouchableOpacity>
             <TouchableOpacity style={styles.playButton} onPress={togglePlayPause}>
-              <Text style={styles.playButtonText}>
-                {playerState.paused ? '▶️' : '⏸️'}
-              </Text>
+              <Icon 
+                name={playerState.paused ? 'play' : 'pause'} 
+                size={36} 
+                color="#fff" 
+              />
             </TouchableOpacity>
             <TouchableOpacity style={styles.controlButton} onPress={isRTL ? seekBackward : seekForward}>
-              <Text style={styles.controlButtonText}>{isRTL ? '⏪' : '⏩'}</Text>
+              <Animated.View
+                style={{
+                  transform: [
+                    { translateX: isRTL ? seekBackwardAnimTranslate : seekForwardAnimTranslate },
+                  ],
+                }}
+              >
+                <Icon 
+                  name={isRTL ? 'play-back' : 'play-forward'} 
+                  size={32} 
+                  color="#fff" 
+                />
+              </Animated.View>
             </TouchableOpacity>
           </View>
-
-          {/* Video Info */}
-          <View style={[styles.videoInfo, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <Text style={[styles.videoInfoText, { textAlign: isRTL ? 'right' : 'left' }]}>
-              {playout.drm ? '🔒 DRM Protected' : '🔓 Free Content'}
-            </Text>
-            <Text style={[styles.videoInfoText, { textAlign: 'center' }]}>
-              {playout.streamingProtocol?.toUpperCase()} • {Platform.OS === 'ios' ? 'iOS' : 'Android'}
-            </Text>
-            <Text style={[styles.videoInfoText, { textAlign: isRTL ? 'left' : 'right' }]}>
-              Content ID: {contentId}
-            </Text>
-          </View>
-        </View>
+        </LinearGradient>
       </View>
     </View>
   );
@@ -500,14 +589,16 @@ const styles = StyleSheet.create({
   controlsContainer: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
-    padding: 32,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 32,
+    paddingBottom: 16,
   },
   backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -517,6 +608,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
   },
   videoTitle: {
     flex: 1,
@@ -526,76 +618,63 @@ const styles = StyleSheet.create({
   },
   muteButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    padding: 8,
+    padding: 12,
     borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  muteButtonText: {
-    color: '#fff',
-    fontSize: 24,
-  },
-  bottomBar: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 12,
-    padding: 16,
+  bottomControlsGradient: {
+    width: '100%',
+    paddingHorizontal: 32,
+    paddingVertical: 24,
+    paddingBottom: 32,
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   timeText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
-    minWidth: 50,
+    minWidth: 60,
     textAlign: 'center',
   },
   progressBar: {
     flex: 1,
-    height: 4,
+    height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 2,
-    marginHorizontal: 12,
+    borderRadius: 3,
+    marginHorizontal: 16,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: theme.colors.primary,
-    borderRadius: 2,
+    borderRadius: 3,
   },
   controlButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
   },
   controlButton: {
-    padding: 12,
-    marginHorizontal: 8,
-  },
-  controlButtonText: {
-    fontSize: 24,
+    padding: 16,
+    marginHorizontal: 12,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playButton: {
     backgroundColor: theme.colors.primary,
     borderRadius: 50,
-    width: 60,
-    height: 60,
+    width: 80,
+    height: 80,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 16,
-  },
-  playButtonText: {
-    fontSize: 24,
-  },
-  videoInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  videoInfoText: {
-    color: '#ccc',
-    fontSize: 12,
+    marginHorizontal: 24,
   },
   remoteActionOverlay: {
     position: 'absolute',
