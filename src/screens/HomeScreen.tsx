@@ -121,8 +121,8 @@ export const HomeScreen: React.FC = () => {
   }, []);
 
   const handleContinueWatchingPress = useCallback(() => {
-    Alert.alert('Continue Watching', 'Navigate to continue watching');
-  }, []);
+    navigation.navigate('ContinueWatching');
+  }, [navigation]);
 
   // Check if hero content is in my list
   const checkIsInMyList = useCallback(async () => {

@@ -55,6 +55,11 @@ interface PlayerState {
   subtitleCues: VTTCue[];
   sessionId: string | null;
   lastHeartbeatTime: number;
+  showContinueWatchingModal: boolean;
+  existingProgress?: {
+    progressInSeconds: number;
+    completed: boolean;
+  };
 }
 
 export const VideoPlayerScreen: React.FC = () => {
@@ -77,7 +82,7 @@ export const VideoPlayerScreen: React.FC = () => {
   
   // Player state
   const [playerState, setPlayerState] = useState<PlayerState>({
-    paused: false, // Start playing
+    paused: true, // Start paused initially, will be controlled by modal or auto-play
     currentTime: resumeTime,
     duration: 0,
     loading: true,
@@ -92,6 +97,7 @@ export const VideoPlayerScreen: React.FC = () => {
     subtitleCues: [],
     sessionId: null,
     lastHeartbeatTime: 0,
+    showContinueWatchingModal: false,
   });
   
   // Prepare playout request
@@ -104,6 +110,89 @@ export const VideoPlayerScreen: React.FC = () => {
 
   // Fetch playout data
   const { data: playout, loading: playoutLoading, error: playoutError } = usePlayout(playoutRequest);
+
+  // Check for existing watch progress on mount
+  React.useEffect(() => {
+    const checkWatchProgress = async () => {
+      try {
+        const response = await streamingAPI.getWatchProgress(contentId);
+        if (response.success && response.data && !response.data.completed) {
+          // Only show modal if there's meaningful progress (more than 30 seconds and less than 90% complete)
+          const progressSeconds = response.data.progressInSeconds;
+          const content = await streamingAPI.getContentById(contentId);
+          const duration = content.success && content.data ? content.data.durationInSeconds : 0;
+          const progressPercentage = duration > 0 ? (progressSeconds / duration) * 100 : 0;
+          
+          if (progressSeconds > 30 && progressPercentage < 90) {
+            console.log(`📺 Found existing progress: ${Math.floor(progressSeconds)}s (${progressPercentage.toFixed(1)}%)`);
+            setPlayerState(prev => ({
+              ...prev,
+              showContinueWatchingModal: true,
+              paused: true, // Pause the player when modal appears
+              existingProgress: {
+                progressInSeconds: progressSeconds,
+                completed: response.data!.completed,
+              }
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to check watch progress:', error);
+      }
+    };
+
+    if (!playoutLoading && playout) {
+      checkWatchProgress();
+    }
+  }, [contentId, playoutLoading, playout]);
+
+  // Auto-play when video loads if no continue watching modal
+  React.useEffect(() => {
+    if (!playerState.loading && !playerState.showContinueWatchingModal && playerState.paused) {
+      console.log('📺 Auto-starting playback (no continue watching modal)');
+      setPlayerState(prev => ({ ...prev, paused: false }));
+    }
+  }, [playerState.loading, playerState.showContinueWatchingModal, playerState.paused]);
+
+  // Handle continue watching choice
+  const handleContinueWatching = useCallback((shouldContinue: boolean) => {
+    setPlayerState(prev => {
+      const newState = {
+        ...prev,
+        showContinueWatchingModal: false,
+        paused: false, // Resume playback when modal is dismissed
+      };
+      
+      if (shouldContinue && prev.existingProgress) {
+        // Set resume time and start from existing progress
+        newState.currentTime = prev.existingProgress.progressInSeconds;
+        console.log(`📺 Continuing from ${Math.floor(prev.existingProgress.progressInSeconds)}s`);
+        
+        // For continue watching, we need to seek to the position but keep playing
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.seek(prev.existingProgress!.progressInSeconds);
+          }
+        }, 100); // Small delay to ensure video is ready
+      } else {
+        // Start from beginning
+        newState.currentTime = 0;
+        console.log('📺 Starting from beginning');
+        
+        // Seek to beginning
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.seek(0);
+          }
+        }, 100);
+      }
+      
+      return newState;
+    });
+    
+    // Reset focus when modal closes
+    setFocusedButton(null);
+  }, []);
 
   // Heartbeat functionality
   const createSession = useCallback(async () => {
@@ -432,19 +521,22 @@ export const VideoPlayerScreen: React.FC = () => {
     // Create session and send initial heartbeat
     const sessionId = await createSession();
     if (sessionId) {
+      // Determine the actual resume time (from continue watching modal or route params)
+      const actualResumeTime = playerState.currentTime > 0 ? playerState.currentTime : resumeTime;
+      
       // Send start heartbeat
-      await sendHeartbeat(resumeTime, sessionId, 'start');
+      await sendHeartbeat(actualResumeTime, sessionId, 'start');
       
       // Start heartbeat interval
       startHeartbeatInterval(sessionId);
+      
+      // Only seek if continue watching modal is not shown (modal will handle seeking)
+      if (!playerState.showContinueWatchingModal && actualResumeTime > 0) {
+        console.log(`⏭️ Seeking to resume time: ${actualResumeTime}s`);
+        videoRef.current?.seek(actualResumeTime);
+      }
     }
-    
-    // Seek to resume time if provided
-    if (resumeTime > 0) {
-      console.log(`⏭️ Seeking to resume time: ${resumeTime}s`);
-      videoRef.current?.seek(resumeTime);
-    }
-  }, [resumeTime, playout, createSession, sendHeartbeat, startHeartbeatInterval]);
+  }, [resumeTime, playout, createSession, sendHeartbeat, startHeartbeatInterval, playerState.currentTime, playerState.showContinueWatchingModal]);
 
   const onProgress = useCallback((data: OnProgressData) => {
     setPlayerState(prev => {
@@ -549,6 +641,12 @@ export const VideoPlayerScreen: React.FC = () => {
         return;
       }
       
+      // Don't handle TV events if continue watching modal is visible
+      if (playerState.showContinueWatchingModal) {
+        console.log('🎮 Continue watching modal is visible, ignoring TV remote events');
+        return;
+      }
+      
       switch (eventType) {
         case 'playPause':
         case 'select':
@@ -602,7 +700,7 @@ export const VideoPlayerScreen: React.FC = () => {
     return () => {
       subscription?.remove();
     };
-  }, [togglePlayPause, seekForward, seekBackward, handleBackPress]);
+  }, [togglePlayPause, seekForward, seekBackward, handleBackPress, playerState.showContinueWatchingModal, playerState.showSubtitleModal, focusedButton]);
 
   // Handle hardware back button
   React.useEffect(() => {
@@ -751,14 +849,14 @@ export const VideoPlayerScreen: React.FC = () => {
       )}
 
       {/* Subtitle Display */}
-      {playerState.currentSubtitle && (
+      {playerState.currentSubtitle && !playerState.showContinueWatchingModal && (
         <View style={styles.subtitleOverlay}>
           <Text style={styles.subtitleText}>{playerState.currentSubtitle}</Text>
         </View>
       )}
 
       {/* Debug Info - Remove this after testing */}
-      {__DEV__ && (
+      {__DEV__ && !playerState.showContinueWatchingModal && (
         <View style={{
           position: 'absolute',
           top: 100,
@@ -795,8 +893,52 @@ export const VideoPlayerScreen: React.FC = () => {
         }}
       />
 
+      {/* Continue Watching Modal */}
+      {playerState.showContinueWatchingModal && playerState.existingProgress && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.continueWatchingModal}>
+            <Text style={styles.modalTitle}>Continue Watching?</Text>
+            <Text style={styles.modalMessage}>
+              You were watching "{contentTitle}" and stopped at{' '}
+              {formatTime(playerState.existingProgress.progressInSeconds)}.
+            </Text>
+            <Text style={styles.modalSubMessage}>
+              Would you like to continue from where you left off or start over?
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[
+                  styles.modalButton, 
+                  focusedButton === 'startOver' && styles.modalButtonFocused
+                ]}
+                onPress={() => handleContinueWatching(false)}
+                onFocus={() => setFocusedButton('startOver')}
+                onBlur={() => setFocusedButton(null)}
+                hasTVPreferredFocus={false}
+              >
+                <Text style={styles.secondaryButtonText}>Start Over</Text>
+              </Pressable>
+              
+              <Pressable
+                style={[
+                  styles.modalButton, 
+                  focusedButton === 'continue' && styles.modalButtonFocused
+                ]}
+                onPress={() => handleContinueWatching(true)}
+                onFocus={() => setFocusedButton('continue')}
+                onBlur={() => setFocusedButton(null)}
+                hasTVPreferredFocus={true}
+              >
+                <Text style={styles.primaryButtonText}>Continue Watching</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Player Controls */}
-      {!playerState.warningMessage && <View style={styles.controlsContainer}>
+      {!playerState.warningMessage && !playerState.showContinueWatchingModal && <View style={styles.controlsContainer}>
         {/* Top Bar with Gradient */}
         <LinearGradient
           colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0)']}
@@ -1148,5 +1290,80 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     lineHeight: 24,
     maxWidth: '100%',
+  },
+
+  // Continue Watching Modal Styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    zIndex: 2000,
+  },
+  continueWatchingModal: {
+    backgroundColor: '#1a1a1a',
+    padding: 32,
+    borderRadius: 16,
+    width: '80%',
+    maxWidth: 500,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  modalMessage: {
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  modalSubMessage: {
+    color: '#ccc',
+    fontSize: 14,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 56,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  modalButtonFocused: {
+    transform: [{ scale: 1.05 }],
+    backgroundColor: theme.colors.primary,
+  },
+  secondaryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  secondaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  primaryButton: {
+    backgroundColor: theme.colors.primary,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }); 

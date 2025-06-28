@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { HomeScreen } from '../screens/HomeScreen';
 import { VideoPlayerScreen } from '../screens/VideoPlayerScreen';
 import { ProfileSettingsScreen } from '../screens/ProfileSettingsScreen';
+import { ContinueWatchingScreen } from '../screens/ContinueWatchingScreen';
 import { RootStackParamList } from '../types';
 import { theme } from '../constants/theme';
 
@@ -72,6 +73,13 @@ export const AppNavigator: React.FC = () => {
           component={ProfileSettingsScreen}
           options={{
             title: 'Profile & Settings',
+          }}
+        />
+        <Stack.Screen 
+          name="ContinueWatching" 
+          component={ContinueWatchingScreen}
+          options={{
+            title: 'Continue Watching',
           }}
         />
       </Stack.Navigator>

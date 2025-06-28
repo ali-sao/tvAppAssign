@@ -77,6 +77,7 @@ export type RootStackParamList = {
   };
   Search: undefined;
   MyList: undefined;
+  ContinueWatching: undefined;
   ProfileSettings: undefined;
 };
 
