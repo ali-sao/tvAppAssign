@@ -414,38 +414,45 @@ export const VideoPlayerScreen: React.FC = () => {
 
       {/* Player Controls */}
       <View style={styles.controlsContainer}>
-        {/* Top Bar */}
-        <View style={[styles.topBar, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-            <Icon 
-              name="chevron-back" 
-              size={24} 
-              color="#fff" 
-              style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }}
-            />
-            <Text style={styles.backButtonText}>
-              {isRTL ? 'رجوع' : 'Back'}
+        {/* Top Bar with Gradient */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.topBarGradient}
+        >
+          <View style={[styles.topBar, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+              <Icon 
+                name="chevron-back" 
+                size={24} 
+                color="#fff" 
+                style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }}
+              />
+              <Text style={styles.backButtonText}>
+                {isRTL ? 'رجوع' : 'Back'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.videoTitle, { 
+              marginLeft: isRTL ? 0 : 16, 
+              marginRight: isRTL ? 16 : 0,
+              textAlign: isRTL ? 'right' : 'left'
+            }]} numberOfLines={1}>
+              {contentTitle}
             </Text>
-          </TouchableOpacity>
-          <Text style={[styles.videoTitle, { 
-            marginLeft: isRTL ? 0 : 16, 
-            marginRight: isRTL ? 16 : 0,
-            textAlign: isRTL ? 'right' : 'left'
-          }]} numberOfLines={1}>
-            {contentTitle}
-          </Text>
-          <TouchableOpacity style={styles.muteButton} onPress={toggleMute}>
-            <Icon 
-              name={playerState.muted ? 'volume-mute' : 'volume-high'} 
-              size={24} 
-              color="#fff" 
-            />
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity style={styles.muteButton} onPress={toggleMute}>
+              <Icon 
+                name={playerState.muted ? 'volume-mute' : 'volume-high'} 
+                size={24} 
+                color="#fff" 
+              />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
 
         {/* Bottom Controls with Gradient */}
         <LinearGradient
-          colors={['rgba(0,0,0,0.01)', 'rgba(0,0,0,0.4)']}
+          colors={['rgba(0,0,0,0.0)', 'rgba(0,0,0,0.5)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.bottomControlsGradient}
@@ -590,11 +597,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
   },
+  topBarGradient: {
+    width: '100%',
+    paddingHorizontal: 32,
+    paddingVertical: 24,
+    paddingTop: 32,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 32,
-    paddingBottom: 16,
   },
   backButton: {
     flexDirection: 'row',
@@ -626,13 +637,14 @@ const styles = StyleSheet.create({
   bottomControlsGradient: {
     width: '100%',
     paddingHorizontal: 32,
-    paddingVertical: 24,
     paddingBottom: 32,
+    paddingTop: 50,
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginTop: 24,
+    marginBottom: 12,
   },
   timeText: {
     color: '#fff',
