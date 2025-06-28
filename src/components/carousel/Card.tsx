@@ -76,7 +76,7 @@ export const Card: React.FC<CardProps> = ({
       >
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: item.logoTitleImage }}
+            source={{ uri: item.posterImage }}
             style={styles.poster}
             onLoad={handleImageLoad}
             placeholder={{ blurhash: 'L6PZfSjE.AyE_3t7t7R**0o#DgR4' }}

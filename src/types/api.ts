@@ -4,6 +4,7 @@ export interface ContentEntity {
   title: string;
   description: string;
   logoTitleImage: string;
+  posterImage: string;
   type: 'show' | 'episode' | 'movie' | 'live_event' | 'serialized';
   heroImage: string;
   durationInSeconds: number;
