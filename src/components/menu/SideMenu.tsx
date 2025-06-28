@@ -236,6 +236,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                   onPress={item.onPress}
                   onFocus={() => handleFocus(index)}
                   onBlur={handleBlur}
+                  hasTVPreferredFocus={false}
                 >
                   <Animated.View style={[
                     styles.menuItemFocusedGradient,

@@ -18,7 +18,7 @@ interface DirectionProviderProps {
 
 // Constants
 const DIRECTION_STORAGE_KEY = '@thamaneyah_direction';
-const DEFAULT_DIRECTION: LayoutDirection = 'rtl'; // RTL as default
+const DEFAULT_DIRECTION: LayoutDirection = 'ltr'; // ltr as default
 
 // Create Context
 const DirectionContext = createContext<DirectionContextValue | undefined>(undefined);
