@@ -58,8 +58,8 @@ export const dimensions = {
   heroHeight: 560,
   posterWidth: 180,
   posterHeight: 270,
-  carouselItemWidth: 200,
-  carouselItemHeight: 300,
+  carouselItemWidth: 133, // Reduced to 2/3 of original (200 * 2/3 = 133)
+  carouselItemHeight: 200, // Reduced to 2/3 of original (300 * 2/3 = 200)
   buttonHeight: 50,
   buttonWidth: 120,
 }; 

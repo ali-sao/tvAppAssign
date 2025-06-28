@@ -261,14 +261,14 @@ const styles = StyleSheet.create({
   },
   // Hero Section - Dynamic height (70% of screen height)
   heroContainer: {
-    height: screenHeight * 0.7, // 70% of screen height
-    maxHeight: 800, // Maximum height for very large screens
+    height: screenHeight * 0.65, // 65% of screen height
+    maxHeight: 700, // Maximum height for very large screens
     minHeight: 400, // Minimum height for very small screens
   },
   // Carousel Section - Dynamic height (30% of screen height)
   carouselContainer: {
-    height: screenHeight * 0.3, // 30% of screen height
-    maxHeight: 400, // Maximum height for very large screens
+    height: screenHeight * 0.35, // 35% of screen height
+    maxHeight: 500, // Maximum height for very large screens
     minHeight: 200, // Minimum height for very small screens
     backgroundColor: theme.colors.background,
   },

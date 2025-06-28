@@ -27,37 +27,22 @@ export const Card: React.FC<CardProps> = ({
   const [focused, setFocused] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   const handleFocus = () => {
     setFocused(true);
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: focusStyles.scale,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    Animated.spring(scaleAnim, {
+      toValue: focusStyles.scale,
+      useNativeDriver: true,
+    }).start();
     onFocus?.();
   };
 
   const handleBlur = () => {
     setFocused(false);
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleImageLoad = () => {
@@ -108,14 +93,9 @@ export const Card: React.FC<CardProps> = ({
             </View>
           )}
 
-          {/* Focus border */}
+          {/* Focus border - only show when focused */}
           {focused && (
-            <Animated.View 
-              style={[
-                styles.focusBorder,
-                { opacity: opacityAnim }
-              ]} 
-            />
+            <View style={styles.focusBorder} />
           )}
 
           {/* Rating badge */}
@@ -170,11 +150,6 @@ const styles = StyleSheet.create({
     borderWidth: focusStyles.borderWidth,
     borderColor: focusStyles.borderColor,
     borderRadius: theme.borderRadius.md,
-    shadowColor: focusStyles.shadowColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: focusStyles.shadowOpacity,
-    shadowRadius: focusStyles.shadowRadius,
-    elevation: 8,
   },
   ratingBadge: {
     position: 'absolute',
