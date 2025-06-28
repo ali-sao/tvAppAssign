@@ -69,9 +69,15 @@ export interface NavigationState {
 export type RootStackParamList = {
   Home: undefined;
   MovieDetail: { movieId: string };
-  Player: { videoUrl: string; title: string; resumeTime?: number };
+  Player: { 
+    contentId: number;
+    contentTitle: string;
+    playoutData?: any;
+    resumeTime?: number;
+  };
   Search: undefined;
   MyList: undefined;
+  ProfileSettings: undefined;
 };
 
 export interface AppTheme {

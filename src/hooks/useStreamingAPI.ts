@@ -163,40 +163,16 @@ export function useMyListOperations() {
   };
 }
 
-// Hook for playout
+// Hook for playout - simplified version using useAPICall
 export function usePlayout(request: PlayoutRequest | null) {
-  const [data, setData] = useState<PlayoutResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  if (!request) {
+    return { data: null, loading: false, error: 'No request provided' };
+  }
 
-  const getPlayout = useCallback(async (playoutRequest: PlayoutRequest) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await streamingAPI.getPlayout(playoutRequest);
-      
-      if (response.success && response.data) {
-        setData(response.data);
-        return response.data;
-      } else {
-        setError(response.error?.message || 'Failed to get playout');
-        return null;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (request) {
-      getPlayout(request);
-    }
-  }, [request, getPlayout]);
-
-  return { data, loading, error, getPlayout };
+  return useAPICall(
+    () => streamingAPI.getPlayout(request),
+    [request.contentId, request.drmSchema, request.streamingProtocol, request.deviceType]
+  );
 }
 
 // Hook for heartbeat service

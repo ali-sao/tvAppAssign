@@ -42,16 +42,15 @@ export const HomeScreen: React.FC = () => {
 
   const handlePlayPress = useCallback(() => {
     if (heroContent) {
-      // For now, show alert since we don't have actual video URLs
-      // In real implementation, you would get playout info and navigate to player
-      Alert.alert('Play Content', `Playing: ${heroContent.title}`);
-      // TODO: Get playout info and navigate to player
-      // const playoutInfo = await api.getPlayout({ contentId: heroContent.id });
-      // navigation.navigate('Player', { contentId: heroContent.id, title: heroContent.title });
+      navigation.navigate('Player', {
+        contentId: heroContent.id,
+        contentTitle: heroContent.title,
+        resumeTime: 0, // Start from beginning, could get from continue watching API
+      });
     } else {
       Alert.alert('Error', 'No content available');
     }
-  }, [heroContent]);
+  }, [heroContent, navigation]);
 
   const handleTrailerPress = useCallback(() => {
     if (heroContent?.trailerID) {
@@ -83,28 +82,13 @@ export const HomeScreen: React.FC = () => {
   }, [heroContent, myListOps, myList]);
 
   const handleContentItemPress = useCallback((item: ContentEntity) => {
-    Alert.alert(
-      'Content Selected',
-      `You selected: ${item.title}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Play', 
-          onPress: () => {
-            Alert.alert('Play Content', `Playing: ${item.title}`);
-            // TODO: Get playout info and navigate to player
-          }
-        },
-        { 
-          text: 'Details', 
-          onPress: () => {
-            Alert.alert('Details', `Show details for ${item.title}`);
-            // TODO: Navigate to detail screen
-          }
-        }
-      ]
-    );
-  }, []);
+    // Navigate directly to player with content info
+    navigation.navigate('Player', {
+      contentId: item.id,
+      contentTitle: item.title,
+      resumeTime: 0, // Start from beginning, could get from continue watching API
+    });
+  }, [navigation]);
 
   const handleContentItemFocus = useCallback((item: ContentEntity, carouselIndex: number, itemIndex: number) => {
     setFocusedContent(item);
@@ -125,8 +109,8 @@ export const HomeScreen: React.FC = () => {
 
   // Menu handlers
   const handleProfilePress = useCallback(() => {
-    Alert.alert('Profile & Settings', 'Navigate to profile and settings');
-  }, []);
+    navigation.navigate('ProfileSettings');
+  }, [navigation]);
 
   const handleHomePress = useCallback(() => {
     Alert.alert('Home', 'Already on home screen');
@@ -299,39 +283,6 @@ const styles = StyleSheet.create({
   },
   extraPadding: {
     height:  150 + (16 * 2) + 20,
-  },
-  // Direction Controls
-  directionControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.surface,
-  },
-  directionControlsRTL: {
-    flexDirection: 'row-reverse',
-  },
-  directionInfo: {
-    flex: 1,
-  },
-  directionText: {
-    color: theme.colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  toggleButton: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.sm,
-  },
-  toggleButtonText: {
-    color: theme.colors.text,
-    fontSize: 14,
-    fontWeight: '600',
   },
   // RTL Test Area
   rtlTestArea: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Animated,
+  Platform,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -17,6 +18,8 @@ import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { RootStackParamList } from '../types';
 import { theme } from '../constants/theme';
 import { useTVRemote } from '../hooks/useTVRemote';
+import { usePlayout } from '../hooks/useStreamingAPI';
+import { PlayoutRequest } from '../types/api';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -36,10 +39,10 @@ interface PlayerControls {
 export const VideoPlayerScreen: React.FC = () => {
   const route = useRoute<VideoPlayerScreenRouteProp>();
   const navigation = useNavigation<VideoPlayerScreenNavigationProp>();
-  const { videoUrl, title, resumeTime = 0 } = route.params;
+  const { contentId, contentTitle, playoutData, resumeTime = 0 } = route.params;
   
   const videoRef = useRef<Video>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   
   const [controls, setControls] = useState<PlayerControls>({
@@ -51,6 +54,17 @@ export const VideoPlayerScreen: React.FC = () => {
     error: null,
     buffering: false,
   });
+
+  // Prepare playout request - memoize to prevent infinite re-renders
+  const playoutRequest = useMemo<PlayoutRequest>(() => ({
+    contentId,
+    drmSchema: Platform.OS === 'ios' ? 'fairplay' : 'widevine',
+    streamingProtocol: Platform.OS === 'ios' ? 'hls' : 'dash',
+    deviceType: Platform.OS === 'ios' ? 'tvos' : 'android',
+  }), [contentId]);
+
+  // Get playout data
+  const { data: playout, loading: playoutLoading, error: playoutError } = usePlayout(playoutRequest);
 
   const hideControls = useCallback(() => {
     setControls(prev => ({ ...prev, visible: false }));
@@ -85,11 +99,17 @@ export const VideoPlayerScreen: React.FC = () => {
   const savePlaybackPosition = useCallback(async (position: number) => {
     try {
       // In a real app, you would save this to AsyncStorage or your backend
-      console.log('Saving playback position:', position);
+      console.log('Saving playback position:', position, 'for content:', contentId);
+      // TODO: Call heartbeat API to save progress
+      // await streamingAPI.sendHeartbeat({
+      //   contentId,
+      //   progressInSeconds: position,
+      //   sessionId: generateSessionId()
+      // });
     } catch (error) {
       console.log('Error saving playback position:', error);
     }
-  }, []);
+  }, [contentId]);
 
   const handleBackPress = useCallback((): boolean => {
     // Save current position before exiting
@@ -165,15 +185,17 @@ export const VideoPlayerScreen: React.FC = () => {
   }, [savePlaybackPosition]);
 
   const retryVideo = useCallback(async () => {
+    if (!playout?.mediaURL) return;
+    
     setControls(prev => ({
       ...prev,
       error: null,
       loading: true,
     }));
     if (videoRef.current) {
-      await videoRef.current.loadAsync({ uri: videoUrl });
+      await videoRef.current.loadAsync({ uri: playout.mediaURL });
     }
-  }, [videoUrl]);
+  }, [playout?.mediaURL]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -202,6 +224,72 @@ export const VideoPlayerScreen: React.FC = () => {
     };
   }, [controls.currentTime, savePlaybackPosition]);
 
+  // Initialize video when playout data is available
+  useEffect(() => {
+    if (playout?.mediaURL && videoRef.current) {
+      const loadVideo = async () => {
+        try {
+          await videoRef.current?.loadAsync({ 
+            uri: playout.mediaURL,
+            headers: playout.drm ? {
+              'User-Agent': 'ThamaneyahStreamingApp/1.0',
+              'X-Content-ID': contentId.toString(),
+            } : undefined,
+          });
+          
+          // Set initial position if resuming
+          if (resumeTime > 0) {
+            await videoRef.current?.setPositionAsync(resumeTime * 1000); // Convert to milliseconds
+          }
+          
+          // Start playing
+          await videoRef.current?.playAsync();
+          setControls(prev => ({ ...prev, paused: false }));
+          
+          // Hide controls after initial load
+          hideControlsAfterDelay();
+        } catch (error) {
+          console.error('Error loading video:', error);
+          setControls(prev => ({
+            ...prev,
+            error: 'Failed to load video',
+            loading: false,
+          }));
+        }
+      };
+      
+      loadVideo();
+    }
+  }, [playout?.mediaURL, resumeTime, contentId, hideControlsAfterDelay]);
+
+  // Show loading screen while fetching playout data
+  if (playoutLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <StatusBar hidden />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={styles.loadingText}>Preparing video...</Text>
+        <Text style={styles.loadingSubText}>{contentTitle}</Text>
+      </View>
+    );
+  }
+
+  // Show error screen if playout failed
+  if (playoutError || !playout) {
+    return (
+      <View style={styles.errorContainer}>
+        <StatusBar hidden />
+        <Text style={styles.errorTitle}>Unable to Play Video</Text>
+        <Text style={styles.errorMessage}>
+          {playoutError || 'Failed to get video information'}
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.retryButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar hidden />
@@ -210,111 +298,100 @@ export const VideoPlayerScreen: React.FC = () => {
       <Video
         ref={videoRef}
         style={styles.video}
-        source={{ uri: videoUrl }}
         resizeMode={ResizeMode.CONTAIN}
-        shouldPlay={!controls.paused}
+        shouldPlay={false}
         isLooping={false}
         onPlaybackStatusUpdate={onPlaybackStatusUpdate}
         useNativeControls={false}
-        volume={1.0}
-        isMuted={false}
-        onLoad={() => {
-          setControls(prev => ({ ...prev, loading: false }));
-          hideControlsAfterDelay();
-        }}
-        onError={() => {
-          setControls(prev => ({
-            ...prev,
-            error: 'Failed to load video. Please check your connection and try again.',
-            loading: false,
-          }));
-        }}
       />
 
-      {/* Loading Spinner */}
-      {(controls.loading || controls.buffering) && (
-        <View style={styles.loadingContainer}>
+      {/* Loading Overlay */}
+      {controls.loading && (
+        <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>
-            {controls.loading ? 'Loading video...' : 'Buffering...'}
-          </Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       )}
 
-      {/* Error State */}
+      {/* Buffering Overlay */}
+      {controls.buffering && !controls.loading && (
+        <View style={styles.bufferingOverlay}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      )}
+
+      {/* Error Overlay */}
       {controls.error && (
-        <View style={styles.errorContainer}>
+        <View style={styles.errorOverlay}>
           <Text style={styles.errorTitle}>Playback Error</Text>
           <Text style={styles.errorMessage}>{controls.error}</Text>
-          <TouchableOpacity 
-            style={styles.retryButton}
-            onPress={retryVideo}
-            hasTVPreferredFocus
-          >
+          <TouchableOpacity style={styles.retryButton} onPress={retryVideo}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Player Controls Overlay */}
-      {controls.visible && !controls.error && (
-        <Animated.View style={[styles.controlsOverlay, { opacity: fadeAnim }]}>
-          {/* Top Controls */}
-          <View style={styles.topControls}>
-            <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.videoTitle} numberOfLines={1}>
-              {title}
-            </Text>
-            <View style={styles.spacer} />
+      {/* Player Controls */}
+      <Animated.View
+        style={[
+          styles.controlsContainer,
+          { opacity: fadeAnim },
+          !controls.visible && styles.hiddenControls,
+        ]}
+      >
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+            <Text style={styles.backButtonText}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.videoTitle} numberOfLines={1}>
+            {contentTitle}
+          </Text>
+          <View style={styles.spacer} />
+        </View>
+
+        {/* Bottom Bar */}
+        <View style={styles.bottomBar}>
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <Text style={styles.timeText}>{formatTime(controls.currentTime)}</Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${getProgressPercentage()}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.timeText}>{formatTime(controls.duration)}</Text>
           </View>
 
-          {/* Center Play/Pause Button */}
-          <View style={styles.centerControls}>
-            <TouchableOpacity 
-              style={styles.playPauseButton}
-              onPress={() => void togglePlayPause()}
-              hasTVPreferredFocus
-            >
-              <Text style={styles.playPauseText}>
+          {/* Control Buttons */}
+          <View style={styles.controlButtons}>
+            <TouchableOpacity style={styles.controlButton} onPress={seekBackward}>
+              <Text style={styles.controlButtonText}>⏪</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.playButton} onPress={togglePlayPause}>
+              <Text style={styles.playButtonText}>
                 {controls.paused ? '▶️' : '⏸️'}
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.controlButton} onPress={seekForward}>
+              <Text style={styles.controlButtonText}>⏩</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Bottom Controls */}
-          <View style={styles.bottomControls}>
-            <View style={styles.timeContainer}>
-              <Text style={styles.timeText}>
-                {formatTime(controls.currentTime)} / {formatTime(controls.duration)}
-              </Text>
-            </View>
-            
-            {/* Progress Bar */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBackground}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { width: `${getProgressPercentage()}%` }
-                  ]} 
-                />
-              </View>
-            </View>
-
-            {/* Seek Controls */}
-            <View style={styles.seekControls}>
-              <TouchableOpacity style={styles.seekButton} onPress={() => void seekBackward()}>
-                <Text style={styles.seekButtonText}>⏪ 10s</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.seekButton} onPress={() => void seekForward()}>
-                <Text style={styles.seekButtonText}>10s ⏩</Text>
-              </TouchableOpacity>
-            </View>
+          {/* Video Info */}
+          <View style={styles.videoInfo}>
+            <Text style={styles.videoInfoText}>
+              {playout.drm ? '🔒 DRM Protected' : '🔓 Free Content'}
+            </Text>
+            <Text style={styles.videoInfoText}>
+              {playout.streamingProtocol?.toUpperCase()} • {Platform.OS === 'ios' ? 'iOS' : 'Android'}
+            </Text>
           </View>
-        </Animated.View>
-      )}
+        </View>
+      </Animated.View>
     </View>
   );
 };
@@ -325,148 +402,172 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   video: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
+    width: screenWidth,
+    height: screenHeight,
   },
   loadingContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
-  loadingText: {
-    color: theme.colors.text,
-    fontSize: 18,
-    marginTop: theme.spacing.md,
-  },
-  errorContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  bufferingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    padding: theme.spacing.xl,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 18,
+    marginTop: 16,
+    fontWeight: '600',
+  },
+  loadingSubText: {
+    color: '#ccc',
+    fontSize: 14,
+    marginTop: 8,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+    padding: 32,
+  },
+  errorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: 32,
   },
   errorTitle: {
-    color: theme.colors.primary,
+    color: theme.colors.error,
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: theme.spacing.md,
+    marginBottom: 16,
+    textAlign: 'center',
   },
   errorMessage: {
-    color: theme.colors.text,
+    color: '#fff',
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: 24,
     lineHeight: 24,
   },
   retryButton: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
   retryButtonText: {
-    color: theme.colors.text,
-    fontSize: 18,
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
-  controlsOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  controlsContainer: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
+    padding: 32,
   },
-  topControls: {
+  hiddenControls: {
+    pointerEvents: 'none',
+  },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.lg,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    marginBottom: 16,
   },
   backButton: {
-    padding: theme.spacing.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   backButtonText: {
-    color: theme.colors.text,
-    fontSize: 18,
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
   videoTitle: {
-    color: theme.colors.text,
-    fontSize: 20,
-    fontWeight: '600',
-    marginLeft: theme.spacing.md,
     flex: 1,
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginLeft: 16,
   },
   spacer: {
-    width: 40,
+    width: 16,
   },
-  centerControls: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playPauseButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: theme.colors.text,
-  },
-  playPauseText: {
-    fontSize: 32,
-  },
-  bottomControls: {
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: theme.spacing.lg,
-  },
-  timeContainer: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  timeText: {
-    color: theme.colors.text,
-    fontSize: 16,
+  bottomBar: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+    padding: 16,
   },
   progressContainer: {
-    marginBottom: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  progressBackground: {
+  timeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  progressBar: {
+    flex: 1,
     height: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 2,
+    marginHorizontal: 12,
   },
   progressFill: {
-    height: 4,
+    height: '100%',
     backgroundColor: theme.colors.primary,
     borderRadius: 2,
   },
-  seekControls: {
+  controlButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  seekButton: {
-    padding: theme.spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: theme.borderRadius.sm,
+  controlButton: {
+    padding: 12,
+    marginHorizontal: 8,
   },
-  seekButtonText: {
-    color: theme.colors.text,
-    fontSize: 14,
-    fontWeight: '600',
+  controlButtonText: {
+    fontSize: 24,
+  },
+  playButton: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 50,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 16,
+  },
+  playButtonText: {
+    fontSize: 24,
+  },
+  videoInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  videoInfoText: {
+    color: '#ccc',
+    fontSize: 12,
   },
 }); 
