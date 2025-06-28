@@ -205,7 +205,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
           'rgba(0, 0, 0, 1)', 
           'rgba(0, 0, 0, 1)', 
           'rgba(0, 0, 0, 0.8)', 
-          'rgba(0, 0, 0, 0.1)'
+          'rgba(0, 0, 0, 0)'
         ]}
         locations={[0, 0.65, 0.85, 1]}
         start={isRTL ? { x: 1, y: 0 } : { x: 0, y: 0 }}
@@ -257,27 +257,17 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                       size={24}
                       style={[
                         isActive && styles.menuIconActive,
-                        isFocused && styles.menuIconFocused
                       ]}
                     />
                   </View>
                   {showText && (
-                    <Animated.Text style={[
+                    <Text style={[
                       styles.menuLabel,
                       isRTL && styles.menuLabelRTL,
                       isActive && styles.menuLabelActive,
-                      {
-                        color: animatedValue.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [
-                            isActive ? theme.colors.accent : theme.colors.text,
-                            '#FFFFFF'
-                          ],
-                        }),
-                      }
                     ]}>
                       {item.label}
-                    </Animated.Text>
+                    </Text>
                   )}
                               </Pressable>
               );
