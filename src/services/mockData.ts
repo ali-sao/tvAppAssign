@@ -1,4 +1,6 @@
 import { ContentEntity, WatchProgress, ContinueWatchingItem } from '../types/api';
+import { englishVTT } from '../../assets/subtitles/english';
+import { arabicVTT } from '../../assets/subtitles/arabic';
 
 // Mock content data generator
 export const generateMockContent = (): ContentEntity[] => [
@@ -6,13 +8,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 1,
     title: "Fury",
     description: "April 1945. As the Allies make their final push in the European Theatre, a battle-hardened Army sergeant named Wardaddy commands a Sherman tank and his five-man crew on a deadly mission behind enemy lines.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/pfte7wdMobMF4CVHuOxyu6oqeeA.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/pfte7wdMobMF4CVHuOxyu6oqeeA.jpg",
+    logoTitleImage:"",
     type: "movie",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/pft8dLdZgWS3qz4PL8M4KKtlU8w.jpg",
     durationInSeconds: 8040, // 2h 14m
     trailerID: 101,
     cast: ["Brad Pitt", "Shia LaBeouf", "Logan Lerman", "Michael Peña", "Jon Bernthal"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Arabic"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "R",
     tags: ["War", "Drama", "Action", "Historical"],
     drm: false
@@ -21,13 +24,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 2,
     title: "The Big Bang Theory",
     description: "A woman who moves into an apartment across the hall from two brilliant but socially awkward physicists shows them how little they know about life outside of the laboratory.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/ooBGRQBdbGzBxAVfExiO8r7kloA.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/ooBGRQBdbGzBxAVfExiO8r7kloA.jpg",
+    logoTitleImage:"",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/56v2KjBlU4XaOv9rVYEQypROD7P.jpg",
     durationInSeconds: 1320, // 22m per episode
     trailerID: 102,
     cast: ["Jim Parsons", "Johnny Galecki", "Kaley Cuoco", "Simon Helberg", "Kunal Nayyar"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Italian", "Arabic"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "TV-PG",
     tags: ["Comedy", "Sitcom", "Science", "Friendship"],
     drm: false // Free content, no DRM needed
@@ -36,13 +40,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 3,
     title: "Stranger Things",
     description: "When a young boy disappears, his mother, a police chief and his friends must confront terrifying supernatural forces in order to get him back.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg",
+    logoTitleImage:"",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/56v2KjBlU4XaOv9rVYEQypROD7P.jpg",
     durationInSeconds: 3000, // 50m per episode
     trailerID: 103,
     cast: ["Millie Bobby Brown", "Finn Wolfhard", "Winona Ryder", "David Harbour", "Gaten Matarazzo"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "TV-14",
     tags: ["Sci-Fi", "Horror", "Drama", "Supernatural", "80s"],
     drm: false // Premium Netflix content
@@ -51,13 +56,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 4,
     title: "Brooklyn Nine-Nine",
     description: "Comedy series following the exploits of Det. Jake Peralta and his diverse, lovable colleagues as they police the NYPD's 99th Precinct.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/hgRMSOt7a1b8qyQR68vUixJPang.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/hgRMSOt7a1b8qyQR68vUixJPang.jpg",
+    logoTitleImage:"",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/ncC9ZgZuKOdaVm7yXinUn26Qyok.jpg",
     durationInSeconds: 1320, // 22m per episode
     trailerID: 104,
     cast: ["Andy Samberg", "Stephanie Beatriz", "Terry Crews", "Melissa Fumero", "Joe Lo Truglio"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Arabic"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "TV-14",
     tags: ["Comedy", "Police", "Workplace", "Crime"],
     drm: false // Free content, no DRM needed
@@ -66,13 +72,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 5,
     title: "The Mandalorian",
     description: "The travels of a lone bounty hunter in the outer reaches of the galaxy, far from the authority of the New Republic.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/sWgBv7LV2PRoQgkxwlibdGXKz1S.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/sWgBv7LV2PRoQgkxwlibdGXKz1S.jpg",
+    logoTitleImage:"",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/o7qi7v4m7bEEvX7RsUcU8Vxmz2X.jpg",
     durationInSeconds: 2400, // 40m per episode
     trailerID: 105,
     cast: ["Pedro Pascal", "Gina Carano", "Carl Weathers", "Giancarlo Esposito"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Japanese", "Arabic"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "TV-PG",
     tags: ["Sci-Fi", "Action", "Adventure", "Star Wars", "Western"],
     drm: false // Premium Disney+ content
@@ -81,13 +88,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 6,
     title: "Deadpool",
     description: "A wisecracking mercenary gets experimented on and becomes immortal but ugly, and sets out to track down the man who ruined his looks.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/9X7YweCJw3q8Mcf6GadxReFEksM.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/9X7YweCJw3q8Mcf6GadxReFEksM.jpg",
+    logoTitleImage:"",
     type: "movie",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/en971MEXui9diirXlogOrPKmsEn.jpg",
     durationInSeconds: 6480, // 1h 48m
     trailerID: 106,
     cast: ["Ryan Reynolds", "Morena Baccarin", "Ed Skrein", "T.J. Miller", "Gina Carano"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "R",
     tags: ["Action", "Comedy", "Superhero", "Marvel", "Anti-Hero"],
     drm: false // R-rated content requires DRM
@@ -96,13 +104,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 7,
     title: "Game of Thrones",
     description: "Nine noble families fight for control over the mythical lands of Westeros, while an ancient enemy returns after being dormant for millennia.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg",
+    logoTitleImage:"",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
     durationInSeconds: 3600, // 60m per episode
     trailerID: 107,
     cast: ["Emilia Clarke", "Peter Dinklage", "Kit Harington", "Lena Headey", "Nikolaj Coster-Waldau"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic", "Mandarin"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "TV-MA",
     tags: ["Fantasy", "Drama", "Political", "Medieval", "Epic"],
     drm: false // TV-MA content requires DRM
@@ -111,13 +120,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 8,
     title: "Avengers: Endgame",
     description: "After the devastating events of Infinity War, the Avengers assemble once more to reverse Thanos' actions and restore balance to the universe.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg",
+    logoTitleImage:"",
     type: "movie",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg",
     durationInSeconds: 10860, // 3h 1m
     trailerID: 108,
     cast: ["Robert Downey Jr.", "Chris Evans", "Mark Ruffalo", "Chris Hemsworth", "Scarlett Johansson"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic", "Mandarin", "Japanese"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "PG-13",
     tags: ["Action", "Adventure", "Superhero", "Marvel", "Epic"],
     drm: false // Premium movie content
@@ -126,13 +136,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 9,
     title: "The Office",
     description: "A mockumentary on a group of typical office workers, where the workday consists of ego clashes, inappropriate behavior, and tedium.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/7DJKHzAi83BmQrWLrYYOqcoKfhR.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/7DJKHzAi83BmQrWLrYYOqcoKfhR.jpg",
+    logoTitleImage:"",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/qWnJzyZhyy17WgJZGtAf4bqfoP5.jpg",
     durationInSeconds: 1320, // 22m per episode
     trailerID: 109,
     cast: ["Steve Carell", "John Krasinski", "Jenna Fischer", "Rainn Wilson", "Mindy Kaling"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "TV-14",
     tags: ["Comedy", "Mockumentary", "Workplace", "Sitcom"],
     drm: false // Free content, no DRM needed
@@ -141,13 +152,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 10,
     title: "Breaking Bad",
     description: "A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling methamphetamine to secure his family's future.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
+    logoTitleImage:"",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
     durationInSeconds: 2700, // 45m per episode
     trailerID: 110,
     cast: ["Bryan Cranston", "Aaron Paul", "Anna Gunn", "RJ Mitte", "Dean Norris"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Portuguese", "Arabic"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "TV-MA",
     tags: ["Crime", "Drama", "Thriller", "Dark", "Antihero"],
     drm: false // TV-MA content requires DRM
@@ -156,13 +168,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 11,
     title: "Friends",
     description: "Follows the personal and professional lives of six twenty to thirty-something-year-old friends living in Manhattan.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/f496cm9enuEsZkSPzCwnTESEK5s.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/f496cm9enuEsZkSPzCwnTESEK5s.jpg",
+    logoTitleImage:"",
     type: "show",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/56v2KjBlU4XaOv9rVYEQypROD7P.jpg",
     durationInSeconds: 1320, // 22m per episode
     trailerID: 111,
     cast: ["Jennifer Aniston", "Courteney Cox", "Lisa Kudrow", "Matt LeBlanc", "Matthew Perry", "David Schwimmer"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Arabic"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "TV-PG",
     tags: ["Comedy", "Romance", "Friendship", "Sitcom", "90s"],
     drm: false // Free content, no DRM needed
@@ -171,13 +184,14 @@ export const generateMockContent = (): ContentEntity[] => [
     id: 12,
     title: "Inception",
     description: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
-    logoTitleImage: "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
+    posterImage: "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
+    logoTitleImage:"",
     type: "movie",
     heroImage: "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/s3TBrRGB1iav7gFOCNx3H31MoES.jpg",
     durationInSeconds: 8880, // 2h 28m
     trailerID: 112,
     cast: ["Leonardo DiCaprio", "Marion Cotillard", "Tom Hardy", "Ellen Page", "Ken Watanabe"],
-    availableLanguages: ["English", "Spanish", "French", "German", "Japanese", "Arabic", "Mandarin"],
+    availableLanguages: ["English", "Arabic"],
     contentRating: "PG-13",
     tags: ["Sci-Fi", "Thriller", "Action", "Mind-bending", "Heist"],
     drm: false // Premium movie content
@@ -370,14 +384,23 @@ export const generatePlayoutDataForContent = (contentId: number): any | null => 
       bitrate: lang === 'English' ? 256000 : 128000
     })),
 
-    // Subtitle tracks based on content's available languages
-    subtitleTracks: content.availableLanguages.map((lang, index) => ({
-      id: `subtitle_${index}`,
-      language: lang,
-      label: `${lang} Subtitles`,
-      format: 'WebVTT',
-      url: `https://subtitles.thamaneyah.com/${content.id}/${lang.toLowerCase()}.vtt`
-    })),
+    // Subtitle tracks based on content's available languages - using real demo VTT files
+    subtitleTracks: content.availableLanguages.map((lang, index) => {
+      // Use real demo VTT files for testing
+      // Use imported VTT content as data URLs
+      const demoVttFiles: Record<string, string> = {
+        'English': `data:text/vtt;charset=utf-8,${encodeURIComponent(englishVTT)}`,
+        'Arabic': `data:text/vtt;charset=utf-8,${encodeURIComponent(arabicVTT)}`
+      };
+      
+      return {
+        id: `subtitle_${index}`,
+        language: lang,
+        label: `${lang} Subtitles`,
+        format: 'WebVTT',
+        url: demoVttFiles[lang] || 'https://gist.githubusercontent.com/samdutton/ca37f3adaf4e23679957b8083e061177/raw/sample.vtt'
+      };
+    }),
 
     // Chapters (for longer content)
     chapters: content.durationInSeconds > 3600 ? [

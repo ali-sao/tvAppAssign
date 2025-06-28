@@ -30,11 +30,17 @@ import { theme } from '../constants/theme';
 import { usePlayout } from '../hooks/useStreamingAPI';
 import { PlayoutRequest } from '../types/api';
 import { useDirection } from '../contexts/DirectionContext';
+import { VTTCue, loadVTTFile, getCurrentSubtitle } from '../utils/vttParser';
+import { SubtitleSelector, SubtitleTrack } from '../components/common/SubtitleSelector';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 type VideoPlayerScreenRouteProp = RouteProp<RootStackParamList, 'Player'>;
 type VideoPlayerScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Player'>;
+
+
+
+
 
 interface PlayerState {
   paused: boolean;
@@ -45,6 +51,11 @@ interface PlayerState {
   muted: boolean;
   lastRemoteAction?: string;
   seekDirection?: 'forward' | 'backward' | null;
+  subtitleTracks: SubtitleTrack[];
+  selectedSubtitleTrack: number;
+  showSubtitleModal: boolean;
+  currentSubtitle: string | null;
+  subtitleCues: VTTCue[];
 }
 
 export const VideoPlayerScreen: React.FC = () => {
@@ -69,6 +80,11 @@ export const VideoPlayerScreen: React.FC = () => {
     muted: false,
     lastRemoteAction: undefined,
     seekDirection: null,
+    subtitleTracks: [],
+    selectedSubtitleTrack: -1, // -1 means no subtitles
+    showSubtitleModal: false,
+    currentSubtitle: null,
+    subtitleCues: [],
   });
   
   // Prepare playout request
@@ -168,8 +184,55 @@ export const VideoPlayerScreen: React.FC = () => {
 
   const toggleSubtitles = useCallback(() => {
     console.log('📝 Toggle subtitles pressed');
-    // TODO: Implement subtitle toggle functionality
+    setPlayerState(prev => ({ ...prev, showSubtitleModal: true }));
   }, []);
+
+  // Load and parse VTT file using utility functions
+  const loadSubtitleTrack = useCallback(async (track: SubtitleTrack) => {
+    try {
+      console.log(`📝 Loading subtitle track: ${track.label} from ${track.url}`);
+      const cues = await loadVTTFile(track.url);
+      
+      console.log(`📝 Loaded ${cues.length} subtitle cues:`, cues.slice(0, 3)); // Log first 3 cues for debugging
+      
+      setPlayerState(prev => ({
+        ...prev,
+        subtitleCues: cues,
+        currentSubtitle: null
+      }));
+      
+      console.log(`📝 Successfully loaded ${cues.length} subtitle cues for ${track.language}`);
+    } catch (error) {
+      console.error('📝 Failed to load subtitle track:', error);
+      setPlayerState(prev => ({
+        ...prev,
+        subtitleCues: [],
+        currentSubtitle: null
+      }));
+    }
+  }, []);
+
+  const selectSubtitleTrack = useCallback((trackIndex: number) => {
+    console.log(`📝 Selected subtitle track: ${trackIndex}`);
+    setPlayerState(prev => ({ 
+      ...prev, 
+      selectedSubtitleTrack: trackIndex,
+      showSubtitleModal: false,
+      currentSubtitle: null,
+      subtitleCues: []
+    }));
+    
+    // Reset focus to controls when modal closes
+    setFocusedButton('controls');
+    
+    // Load VTT file if a track is selected
+    if (trackIndex >= 0 && playerState.subtitleTracks[trackIndex]) {
+      console.log(`📝 Loading subtitle track: ${playerState.subtitleTracks[trackIndex].label}`);
+      loadSubtitleTrack(playerState.subtitleTracks[trackIndex]);
+    } else {
+      console.log('📝 No subtitles selected or clearing subtitles');
+    }
+  }, [playerState.subtitleTracks, loadSubtitleTrack]);
 
   // Video Event Handlers
   const onLoad = useCallback((data: OnLoadData) => {
@@ -180,10 +243,14 @@ export const VideoPlayerScreen: React.FC = () => {
       textTracks: data.textTracks.length,
     });
     
+    // Use subtitle tracks from playout response instead of video metadata
+    const subtitleTracks: SubtitleTrack[] = playout?.subtitleTracks || [];
+    
     setPlayerState(prev => ({
       ...prev,
       duration: data.duration,
       loading: false,
+      subtitleTracks,
     }));
     
     // Seek to resume time if provided
@@ -191,13 +258,30 @@ export const VideoPlayerScreen: React.FC = () => {
       console.log(`⏭️ Seeking to resume time: ${resumeTime}s`);
       videoRef.current?.seek(resumeTime);
     }
-  }, [resumeTime]);
+  }, [resumeTime, playout]);
 
   const onProgress = useCallback((data: OnProgressData) => {
-    setPlayerState(prev => ({
-      ...prev,
-      currentTime: data.currentTime,
-    }));
+    setPlayerState(prev => {
+      const newState = {
+        ...prev,
+        currentTime: data.currentTime,
+      };
+
+      // Update current subtitle based on time using utility function
+      if (prev.subtitleCues.length > 0 && prev.selectedSubtitleTrack >= 0) {
+        const subtitle = getCurrentSubtitle(prev.subtitleCues, data.currentTime);
+        newState.currentSubtitle = subtitle;
+        
+        // Debug logging for subtitle display
+        if (subtitle !== prev.currentSubtitle) {
+          console.log(`📝 Subtitle changed at ${data.currentTime.toFixed(1)}s:`, subtitle || 'null');
+        }
+      } else {
+        newState.currentSubtitle = null;
+      }
+
+      return newState;
+    });
     
     // Log progress every 10 seconds to avoid spam
     if (Math.floor(data.currentTime) % 10 === 0) {
@@ -275,10 +359,10 @@ export const VideoPlayerScreen: React.FC = () => {
       switch (eventType) {
         case 'playPause':
         case 'select':
-          // Enter/Select button - toggle play/pause
-         if(focusedButton!=='subtitle'){
-          togglePlayPause();
-         }
+          // Enter/Select button - toggle play/pause or handle modal
+           if (focusedButton !== 'subtitle' && !playerState.showSubtitleModal) {
+            togglePlayPause();
+          }
           break;
           
         case 'right':
@@ -306,9 +390,15 @@ export const VideoPlayerScreen: React.FC = () => {
           break;
           
         case 'menu':
-          // Menu button - go back
-          console.log('📺 Calling handleBackPress');
-          handleBackPress();
+          // Menu button - go back or close modal
+          if (playerState.showSubtitleModal) {
+            console.log('📺 Closing subtitle modal');
+            setPlayerState(prev => ({ ...prev, showSubtitleModal: false }));
+            setFocusedButton('controls'); // Reset focus when closing modal
+          } else {
+            console.log('📺 Calling handleBackPress');
+            handleBackPress();
+          }
           break;
           
         default:
@@ -388,6 +478,7 @@ export const VideoPlayerScreen: React.FC = () => {
         mixWithOthers="duck"
         repeat={false}
         reportBandwidth={true}
+
         onLoadStart={onLoadStart}
         onLoad={onLoad}
         onProgress={onProgress}
@@ -421,6 +512,51 @@ export const VideoPlayerScreen: React.FC = () => {
         </View>
       )}
 
+      {/* Subtitle Display */}
+      {playerState.currentSubtitle && (
+        <View style={styles.subtitleOverlay}>
+          <Text style={styles.subtitleText}>{playerState.currentSubtitle}</Text>
+        </View>
+      )}
+
+      {/* Debug Info - Remove this after testing */}
+      {__DEV__ && (
+        <View style={{
+          position: 'absolute',
+          top: 100,
+          left: 20,
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          padding: 8,
+          borderRadius: 4,
+          zIndex: 1000
+        }}>
+          <Text style={{ color: '#fff', fontSize: 12 }}>
+            Selected Track: {playerState.selectedSubtitleTrack}
+          </Text>
+          <Text style={{ color: '#fff', fontSize: 12 }}>
+            Cues Loaded: {playerState.subtitleCues.length}
+          </Text>
+          <Text style={{ color: '#fff', fontSize: 12 }}>
+            Current Subtitle: {playerState.currentSubtitle ? 'YES' : 'NO'}
+          </Text>
+          <Text style={{ color: '#fff', fontSize: 12 }}>
+            Time: {playerState.currentTime.toFixed(1)}s
+          </Text>
+        </View>
+      )}
+
+      {/* Subtitle Selection Modal */}
+      <SubtitleSelector
+        visible={playerState.showSubtitleModal}
+        subtitleTracks={playerState.subtitleTracks}
+        selectedSubtitleTrack={playerState.selectedSubtitleTrack}
+        onSelectTrack={selectSubtitleTrack}
+        onClose={() => {
+          setPlayerState(prev => ({ ...prev, showSubtitleModal: false }));
+          setFocusedButton('controls'); // Reset focus when closing modal
+        }}
+      />
+
       {/* Player Controls */}
       <View style={styles.controlsContainer}>
         {/* Top Bar with Gradient */}
@@ -438,21 +574,25 @@ export const VideoPlayerScreen: React.FC = () => {
             }]} numberOfLines={1}>
               {contentTitle}
             </Text>
-            <Pressable 
-              style={[
-                styles.subtitleButton,
-                focusedButton === 'subtitle' && styles.focusedButton
-              ]} 
-              onPress={toggleSubtitles}
-              onFocus={() => setFocusedButton('subtitle')}
-              onBlur={() => setFocusedButton(null)}
-            >
-              <Icon 
-                name="language" 
-                size={24} 
-                color="#fff" 
-              />
-            </Pressable>
+            {/* Only show subtitle button if there are subtitle tracks */}
+            {playerState.subtitleTracks.length > 0 && (
+              <Pressable 
+                style={[
+                  styles.subtitleButton,
+                  focusedButton === 'subtitle' && styles.focusedButton
+                ]} 
+                onPress={toggleSubtitles}
+                onFocus={() => setFocusedButton('subtitle')}
+                onBlur={() => setFocusedButton(null)}
+                hasTVPreferredFocus={false}
+              >
+                <Icon 
+                  name="language" 
+                  size={24} 
+                  color="#fff" 
+                />
+              </Pressable>
+            )}
           </View>
         </LinearGradient>
 
@@ -463,8 +603,8 @@ export const VideoPlayerScreen: React.FC = () => {
           end={{ x: 0, y: 1 }}
           style={styles.bottomControlsGradient}
         >
-                     <Pressable 
-             hasTVPreferredFocus={true}
+          <Pressable 
+             hasTVPreferredFocus={!playerState.showSubtitleModal}
              onFocus={() => setFocusedButton('controls')}
              onBlur={() => setFocusedButton(null)}
            >
@@ -740,5 +880,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     minWidth: 200,
+  },
+
+  // Subtitle Display Styles
+  subtitleOverlay: {
+    position: 'absolute',
+    bottom: 120, // Above the bottom controls
+    left: 32,
+    right: 32,
+    alignItems: 'center',
+    zIndex: 500,
+  },
+  subtitleText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    lineHeight: 24,
+    maxWidth: '100%',
   },
 }); 
