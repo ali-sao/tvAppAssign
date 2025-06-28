@@ -8,6 +8,7 @@ import {
   Platform,
   Dimensions,
   TouchableOpacity,
+  Pressable,
   BackHandler,
   TVEventHandler,
   Animated,
@@ -165,6 +166,11 @@ export const VideoPlayerScreen: React.FC = () => {
     setPlayerState(prev => ({ ...prev, muted: newMuted }));
   }, [playerState.muted]);
 
+  const toggleSubtitles = useCallback(() => {
+    console.log('📝 Toggle subtitles pressed');
+    // TODO: Implement subtitle toggle functionality
+  }, []);
+
   // Video Event Handlers
   const onLoad = useCallback((data: OnLoadData) => {
     console.log('✅ Video loaded successfully:', {
@@ -251,6 +257,9 @@ export const VideoPlayerScreen: React.FC = () => {
     }, 1000);
   }, []);
 
+  // Track focus state for styling
+  const [focusedButton, setFocusedButton] = React.useState<string | null>(null);
+
   // Handle TV remote events
   React.useEffect(() => {
     const handleTVEvent = (event: any) => {
@@ -267,9 +276,9 @@ export const VideoPlayerScreen: React.FC = () => {
         case 'playPause':
         case 'select':
           // Enter/Select button - toggle play/pause
-          console.log('📺 Calling togglePlayPause');
-          // showRemoteAction('Play/Pause');
+         if(focusedButton!=='subtitle'){
           togglePlayPause();
+         }
           break;
           
         case 'right':
@@ -422,17 +431,6 @@ export const VideoPlayerScreen: React.FC = () => {
           style={styles.topBarGradient}
         >
           <View style={[styles.topBar, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-              <Icon 
-                name="chevron-back" 
-                size={24} 
-                color="#fff" 
-                style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }}
-              />
-              <Text style={styles.backButtonText}>
-                {isRTL ? 'رجوع' : 'Back'}
-              </Text>
-            </TouchableOpacity>
             <Text style={[styles.videoTitle, { 
               marginLeft: isRTL ? 0 : 16, 
               marginRight: isRTL ? 16 : 0,
@@ -440,13 +438,21 @@ export const VideoPlayerScreen: React.FC = () => {
             }]} numberOfLines={1}>
               {contentTitle}
             </Text>
-            <TouchableOpacity style={styles.muteButton} onPress={toggleMute}>
+            <Pressable 
+              style={[
+                styles.subtitleButton,
+                focusedButton === 'subtitle' && styles.focusedButton
+              ]} 
+              onPress={toggleSubtitles}
+              onFocus={() => setFocusedButton('subtitle')}
+              onBlur={() => setFocusedButton(null)}
+            >
               <Icon 
-                name={playerState.muted ? 'volume-mute' : 'volume-high'} 
+                name="language" 
                 size={24} 
                 color="#fff" 
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </LinearGradient>
 
@@ -457,7 +463,11 @@ export const VideoPlayerScreen: React.FC = () => {
           end={{ x: 0, y: 1 }}
           style={styles.bottomControlsGradient}
         >
-          {/* Progress Bar */}
+                     <Pressable 
+             hasTVPreferredFocus={true}
+             onFocus={() => setFocusedButton('controls')}
+             onBlur={() => setFocusedButton(null)}
+           >
           <View style={[styles.progressContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Text style={styles.timeText}>
               {isRTL ? formatTime(playerState.duration) : formatTime(playerState.currentTime)}
@@ -477,7 +487,15 @@ export const VideoPlayerScreen: React.FC = () => {
 
           {/* Control Buttons */}
           <View style={[styles.controlButtons, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <TouchableOpacity style={styles.controlButton} onPress={isRTL ? seekForward : seekBackward}>
+            <TouchableOpacity 
+              style={[
+                styles.controlButton,
+                focusedButton === 'seekBackward' && styles.focusedButton
+              ]} 
+              onPress={isRTL ? seekForward : seekBackward}
+              onFocus={() => setFocusedButton('seekBackward')}
+              onBlur={() => setFocusedButton(null)}
+            >
               <Animated.View
                 style={{
                   transform: [
@@ -492,14 +510,30 @@ export const VideoPlayerScreen: React.FC = () => {
                 />
               </Animated.View>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.playButton} onPress={togglePlayPause}>
+            <TouchableOpacity 
+              style={[
+                focusedButton === 'controls' || focusedButton === 'playPause' ? styles.playButtonFocused : styles.playButton,
+                focusedButton === 'playPause' && styles.focusedButton
+              ]} 
+              onPress={togglePlayPause}
+              onFocus={() => setFocusedButton('playPause')}
+              onBlur={() => setFocusedButton(null)}
+            >
               <Icon 
                 name={playerState.paused ? 'play' : 'pause'} 
                 size={36} 
                 color="#fff" 
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.controlButton} onPress={isRTL ? seekBackward : seekForward}>
+            <TouchableOpacity 
+              style={[
+                styles.controlButton,
+                focusedButton === 'seekForward' && styles.focusedButton
+              ]} 
+              onPress={isRTL ? seekBackward : seekForward}
+              onFocus={() => setFocusedButton('seekForward')}
+              onBlur={() => setFocusedButton(null)}
+            >
               <Animated.View
                 style={{
                   transform: [
@@ -515,6 +549,7 @@ export const VideoPlayerScreen: React.FC = () => {
               </Animated.View>
             </TouchableOpacity>
           </View>
+          </Pressable>
         </LinearGradient>
       </View>
     </View>
@@ -607,32 +642,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
+
   videoTitle: {
     flex: 1,
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
   },
-  muteButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  subtitleButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     padding: 12,
     borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  focusedButton: {
+    backgroundColor: theme.colors.primary,
   },
   bottomControlsGradient: {
     width: '100%',
@@ -680,6 +705,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   playButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 50,
+    width: 80,
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 24,
+  },
+  playButtonFocused: {
     backgroundColor: theme.colors.primary,
     borderRadius: 50,
     width: 80,
