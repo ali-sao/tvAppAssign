@@ -111,7 +111,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
           style={styles.leftGradient}
           start={{ x: 1, y: 0 }}
           end={{ x: 0, y: 0 }}
-          locations={[0, 0.3, 0.7, 1]}
+          locations={[0, 1]}
         />
 
         {/* Content */}
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   leftGradient: {
     ...StyleSheet.absoluteFillObject,
-    width: '70%', // Use percentage instead of screenWidth calculation
+    width: '100%', // Use percentage instead of screenWidth calculation
   },
   contentContainer: {
     flex: 1,

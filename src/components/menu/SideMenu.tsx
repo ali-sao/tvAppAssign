@@ -243,6 +243,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                   ]}>
                     <LinearGradient
                       colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0)']}
+                      locations={[0, 1]}
                       start={isRTL ? { x: 1, y: 0 } : { x: 0, y: 0 }}
                       end={isRTL ? { x: 0, y: 0 } : { x: 1, y: 0 }}
                       style={styles.gradientFill}

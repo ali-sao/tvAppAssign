@@ -88,6 +88,7 @@ export const Card: React.FC<CardProps> = ({
             <View style={styles.shimmerContainer}>
               <LinearGradient
                 colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+                locations={[0, 0.5, 1]}
                 style={styles.shimmer}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}

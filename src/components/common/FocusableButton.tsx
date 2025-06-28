@@ -109,6 +109,7 @@ export const FocusableButton: React.FC<FocusableButtonProps> = ({
     return (
       <LinearGradient
         colors={[theme.colors.primary, theme.colors.secondary]}
+        locations={[0, 1]}
         style={[styles.gradient, style]}
         start={{ x: 1, y: 0 }}
         end={{ x: 0, y: 0 }}
