@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { HomeScreen } from '../screens/HomeScreen';
 import { VideoPlayerScreen } from '../screens/VideoPlayerScreen';
+import { ProfileSettingsScreen } from '../screens/ProfileSettingsScreen';
 import { RootStackParamList } from '../types';
 import { theme } from '../constants/theme';
 
@@ -64,6 +65,13 @@ export const AppNavigator: React.FC = () => {
           component={VideoPlayerScreen}
           options={{
             title: 'Video Player',
+          }}
+        />
+        <Stack.Screen 
+          name="ProfileSettings" 
+          component={ProfileSettingsScreen}
+          options={{
+            title: 'Profile & Settings',
           }}
         />
       </Stack.Navigator>
