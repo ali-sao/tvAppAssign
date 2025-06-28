@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ImageBackground,
   Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
@@ -32,7 +33,13 @@ export const HeroSection: React.FC<HeroContentProps> = ({
   isInMyList,
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [currentContent, setCurrentContent] = useState(content);
+  const [nextContent, setNextContent] = useState<ContentEntity | null>(null);
   const { isRTL } = useDirection();
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const isTransitioning = useRef(false);
 
   const formatRuntime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -41,28 +48,57 @@ export const HeroSection: React.FC<HeroContentProps> = ({
   };
 
   const getContentInfo = () => {
-    if (content.type === 'show' || content.type === 'episode') {
+    if (currentContent.type === 'show' || currentContent.type === 'episode') {
       // For shows, we don't have season/episode info in ContentEntity, so show type
-      return content.type === 'show' ? 'TV Series' : 'Episode';
+      return currentContent.type === 'show' ? 'TV Series' : 'Episode';
     } else {
       // Movie or other content - show runtime
-      return formatRuntime(content.durationInSeconds);
+      return formatRuntime(currentContent.durationInSeconds);
     }
   };
 
   const getCastString = (): string => {
-    return content.cast.slice(0, 3).join(', ');
+    return currentContent.cast.slice(0, 3).join(', ');
   };
+
+  // Handle content changes with fade transition
+  useEffect(() => {
+    if (content.id !== currentContent.id && !isTransitioning.current) {
+      isTransitioning.current = true;
+      setNextContent(content);
+      
+      // Fade out current content
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        // Switch content and fade in
+        setCurrentContent(content);
+        setNextContent(null);
+        setImageLoaded(false); // Reset image loading state
+        
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          isTransitioning.current = false;
+        });
+      });
+    }
+  }, [content.id, currentContent.id, fadeAnim]);
 
   return (
     <View style={styles.container}>
-      <ImageBackground
-        source={{ uri: content.heroImage }}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-        imageStyle={styles.backgroundImageStyle}
-        onLoad={() => setImageLoaded(true)}
-      >
+      <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <ImageBackground
+          source={{ uri: currentContent.heroImage }}
+          style={styles.backgroundImage}
+          resizeMode="cover"
+          imageStyle={styles.backgroundImageStyle}
+          onLoad={() => setImageLoaded(true)}
+        >
         {/* Gradient Overlays */}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)', theme.colors.background]}
@@ -92,16 +128,16 @@ export const HeroSection: React.FC<HeroContentProps> = ({
               styles.title,
               isRTL && styles.titleRTL
             ]}>
-              {content.title}
+              {currentContent.title}
             </Text>
             
             <View style={[
               styles.metaInfo,
               isRTL && styles.metaInfoRTL
             ]}>
-              <Text style={styles.year}>{content.type.toUpperCase()}</Text>
+              <Text style={styles.year}>{currentContent.type.toUpperCase()}</Text>
               <View style={styles.ratingBadge}>
-                <Text style={styles.rating}>{content.contentRating}</Text>
+                <Text style={styles.rating}>{currentContent.contentRating}</Text>
               </View>
               <Text style={styles.runtime}>{getContentInfo()}</Text>
             </View>
@@ -110,7 +146,7 @@ export const HeroSection: React.FC<HeroContentProps> = ({
               styles.description,
               isRTL && styles.descriptionRTL
             ]} numberOfLines={2} ellipsizeMode="tail">
-              {content.description}
+              {currentContent.description}
             </Text>
 
             <View style={[
@@ -159,9 +195,10 @@ export const HeroSection: React.FC<HeroContentProps> = ({
 
         {/* Large Title Overlay */}
         <View style={styles.titleOverlay}>
-          <Text style={styles.largeTitleText}>{content.title}</Text>
+          <Text style={styles.largeTitleText}>{currentContent.title}</Text>
         </View>
       </ImageBackground>
+      </Animated.View>
     </View>
   );
 };
@@ -170,6 +207,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1, // Take full height of parent container
     width: '100%', // Use percentage instead of fixed screenWidth
+  },
+  animatedContainer: {
+    flex: 1,
+    width: '100%',
   },
   backgroundImage: {
     flex: 1,
