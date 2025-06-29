@@ -17,6 +17,7 @@ import { theme } from '../constants/theme';
 import { useDirection } from '../contexts/DirectionContext';
 import { RootStackParamList } from '../types';
 import { useTVRemote } from '../hooks/useTVRemote';
+import { streamingAPI } from '../services/api';
 
 type ProfileSettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -29,6 +30,69 @@ interface SettingItem {
   onPress?: () => void;
   onToggle?: (value: boolean) => void;
 }
+
+// Enhanced focusable setting button component
+interface FocusableSettingButtonProps {
+  item: SettingItem;
+  isRTL: boolean;
+  hasTVPreferredFocus?: boolean;
+}
+
+const FocusableSettingButton: React.FC<FocusableSettingButtonProps> = ({
+  item,
+  isRTL,
+  hasTVPreferredFocus = false,
+}) => {
+  const [focused, setFocused] = useState(false);
+
+  const handleFocus = () => {
+    setFocused(true);
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+  };
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.settingItem,
+        isRTL && styles.settingItemRTL,
+      ]}
+      onPress={item.onPress}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+      activeOpacity={0.8}
+    >
+      <View style={styles.settingContent}>
+        <Text style={[
+          styles.settingTitle, 
+          isRTL && styles.settingTitleRTL,
+          focused && styles.settingTitleFocused
+        ]}>
+          {item.title}
+        </Text>
+        {item.description && (
+          <Text style={[
+            styles.settingDescription, 
+            isRTL && styles.settingDescriptionRTL,
+            focused && styles.settingDescriptionFocused
+          ]}>
+            {item.description}
+          </Text>
+        )}
+      </View>
+      <Text style={[
+        styles.settingArrow, 
+        isRTL && styles.settingArrowRTL,
+        focused && styles.settingArrowFocused
+      ]}>
+        {isRTL ? '‹' : '›'}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 export const ProfileSettingsScreen: React.FC = () => {
   const navigation = useNavigation<ProfileSettingsScreenNavigationProp>();
@@ -53,35 +117,30 @@ export const ProfileSettingsScreen: React.FC = () => {
     );
   };
 
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Sign Out', 
-          style: 'destructive',
-          onPress: () => {
-            // In a real app, you would clear auth tokens and navigate to login
-            Alert.alert('Signed Out', 'You have been signed out successfully.');
-          }
-        }
-      ]
-    );
-  };
 
   const handleClearCache = () => {
     Alert.alert(
       'Clear Cache',
-      'This will clear all cached data including downloaded content and preferences.',
+      'This will clear all cached data including watch progress, my list, and active sessions.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Clear', 
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Cache Cleared', 'All cached data has been cleared.');
+          onPress: async () => {
+            try {
+              console.log('🗑️ Clearing all cached data...');
+              const response = await streamingAPI.clearAllData();
+              
+              if (response.success) {
+                Alert.alert('Cache Cleared', 'All cached data has been cleared successfully.');
+              } else {
+                Alert.alert('Error', response.error?.message || 'Failed to clear cache.');
+              }
+            } catch (error) {
+              console.error('❌ Error clearing cache:', error);
+              Alert.alert('Error', 'An error occurred while clearing cache.');
+            }
           }
         }
       ]
@@ -108,7 +167,7 @@ export const ProfileSettingsScreen: React.FC = () => {
       title: 'My List',
       description: 'Manage your saved content',
       type: 'button',
-      onPress: () => Alert.alert('My List', 'Navigate to my list management')
+      onPress: () => navigation.navigate('MyList')
     },
   ];
 
@@ -135,31 +194,10 @@ export const ProfileSettingsScreen: React.FC = () => {
       type: 'switch',
       value: autoplay,
       onToggle: setAutoplay
-    },
-    {
-      id: 'quality',
-      title: 'Video Quality',
-      description: 'Auto (Based on connection)',
-      type: 'button',
-      onPress: () => Alert.alert('Video Quality', 'Navigate to quality settings')
-    },
-    {
-      id: 'language',
-      title: 'App Language',
-      description: 'English',
-      type: 'button',
-      onPress: () => Alert.alert('Language', 'Navigate to language settings')
-    },
+    }
   ];
 
   const systemSettings: SettingItem[] = [
-    {
-      id: 'storage',
-      title: 'Storage & Downloads',
-      description: 'Manage downloaded content',
-      type: 'button',
-      onPress: () => Alert.alert('Storage', 'Navigate to storage management')
-    },
     {
       id: 'clear-cache',
       title: 'Clear Cache',
@@ -175,7 +213,7 @@ export const ProfileSettingsScreen: React.FC = () => {
     },
   ];
 
-  const renderSettingItem = (item: SettingItem) => {
+  const renderSettingItem = (item: SettingItem, index: number = 0) => {
     switch (item.type) {
       case 'switch':
         return (
@@ -199,29 +237,15 @@ export const ProfileSettingsScreen: React.FC = () => {
           </View>
         );
 
-             case 'button':
-         return (
-           <TouchableOpacity
-             key={item.id}
-             style={[styles.settingItem, isRTL && styles.settingItemRTL]}
-             onPress={item.onPress}
-             activeOpacity={0.8}
-           >
-             <View style={styles.settingContent}>
-               <Text style={[styles.settingTitle, isRTL && styles.settingTitleRTL]}>
-                 {item.title}
-               </Text>
-               {item.description && (
-                 <Text style={[styles.settingDescription, isRTL && styles.settingDescriptionRTL]}>
-                   {item.description}
-                 </Text>
-               )}
-             </View>
-             <Text style={[styles.settingArrow, isRTL && styles.settingArrowRTL]}>
-               {isRTL ? '‹' : '›'}
-             </Text>
-           </TouchableOpacity>
-         );
+      case 'button':
+        return (
+          <FocusableSettingButton
+            key={item.id}
+            item={item}
+            isRTL={isRTL}
+            hasTVPreferredFocus={index === 0}
+          />
+        );
 
       case 'info':
         return (
@@ -250,7 +274,7 @@ export const ProfileSettingsScreen: React.FC = () => {
         {title}
       </Text>
       <View style={styles.sectionContent}>
-        {items.map(renderSettingItem)}
+        {items.map((item, index) => renderSettingItem(item, index))}
       </View>
     </View>
   );
@@ -262,11 +286,12 @@ export const ProfileSettingsScreen: React.FC = () => {
       {/* Header */}
       <View style={[styles.header, isRTL && styles.headerRTL]}>
         <FocusableButton
-          title="← Back"
+          title={isRTL ? "رجوع ←" : "← Back"}
           variant="secondary"
           size="small"
           onPress={() => navigation.goBack()}
           style={styles.backButton}
+          hasTVPreferredFocus={true}
         />
         <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
           Profile & Settings
@@ -283,14 +308,14 @@ export const ProfileSettingsScreen: React.FC = () => {
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>JD</Text>
+            <Text style={styles.profileAvatarText}>AS</Text>
           </View>
           <View style={[styles.profileInfo, isRTL && styles.profileInfoRTL]}>
             <Text style={[styles.profileName, isRTL && styles.profileNameRTL]}>
-              John Doe
+              Ali Al-Sa'o
             </Text>
             <Text style={[styles.profileEmail, isRTL && styles.profileEmailRTL]}>
-              john.doe@example.com
+              ali.alsao@gmail.com
             </Text>
           </View>
         </View>
@@ -299,39 +324,6 @@ export const ProfileSettingsScreen: React.FC = () => {
         {renderSection('Profile', profileSettings)}
         {renderSection('App Settings', appSettings)}
         {renderSection('System', systemSettings)}
-
-        {/* Sign Out Button */}
-        <View style={styles.signOutSection}>
-          <FocusableButton
-            title="Sign Out"
-            variant="outline"
-            size="large"
-            onPress={handleSignOut}
-            style={styles.signOutButton}
-            textStyle={styles.signOutButtonText}
-          />
-        </View>
-
-        {/* Direction Test Area */}
-        <View style={[styles.directionTestArea, isRTL && styles.directionTestAreaRTL]}>
-          <Text style={[styles.directionTestTitle, isRTL && styles.directionTestTitleRTL]}>
-            Layout Direction Test
-          </Text>
-          <Text style={[styles.directionTestText, isRTL && styles.directionTestTextRTL]}>
-            Current direction: {isRTL ? 'RTL (العربية)' : 'LTR (English)'}
-          </Text>
-          <View style={[styles.directionTestBoxes, isRTL && styles.directionTestBoxesRTL]}>
-            <View style={[styles.directionTestBox, { backgroundColor: theme.colors.primary }]}>
-              <Text style={styles.directionTestBoxText}>1</Text>
-            </View>
-            <View style={[styles.directionTestBox, { backgroundColor: theme.colors.accent }]}>
-              <Text style={styles.directionTestBoxText}>2</Text>
-            </View>
-            <View style={[styles.directionTestBox, { backgroundColor: theme.colors.secondary }]}>
-              <Text style={styles.directionTestBoxText}>3</Text>
-            </View>
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -536,5 +528,14 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  settingTitleFocused: {
+    color: theme.colors.accent,
+  },
+  settingDescriptionFocused: {
+    color: theme.colors.accent,
+  },
+  settingArrowFocused: {
+    color: theme.colors.accent,
   },
 }); 
