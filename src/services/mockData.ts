@@ -200,6 +200,7 @@ export const generateMockContent = (): ContentEntity[] => [
 
 // Mock watch progress data
 export const generateMockWatchProgress = (): WatchProgress[] => [
+  /*
   {
     contentId: 1,
     progressInSeconds: 3600, // 1 hour into Fury
@@ -230,10 +231,11 @@ export const generateMockWatchProgress = (): WatchProgress[] => [
     lastWatched: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
     completed: true
   }
+    */
 ];
 
 // Mock user's favorite list
-export const generateMockMyList = (): number[] => [2, 3, 5, 7, 8, 10, 12];
+export const generateMockMyList = (): number[] => [/*2, 3, 5, 7, 8, 10, 12*/];
 
 // Helper function to get random items from array
 export const getRandomItems = <T>(array: T[], count: number): T[] => {
