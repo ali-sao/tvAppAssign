@@ -2,45 +2,6 @@
 
 A sophisticated React Native TV application for Android TV and tvOS, built with Expo and optimized for TV remote navigation.
 
-## 🚀 Features
-
-### TV-Optimized UI
-- **Netflix-style Interface** with hero sections and horizontal carousels
-- **Focus Management** with visual feedback and smooth animations
-- **TV Remote Navigation** optimized for both Android TV and Apple TV
-- **Dark Theme** designed for television viewing experience
-
-### Core Components
-- **Hero Section** - Featured content with backdrop images, gradients, and action buttons
-- **Content Carousels** - Horizontal scrolling rows of movies and TV shows
-- **Focusable Buttons** - TV-optimized buttons with animation feedback
-- **Shimmer Loading** - Elegant loading states for images
-- **TypeScript Support** - Full type safety throughout the application
-
-### Navigation & UX
-- **Seamless Focus Transitions** between UI elements
-- **Auto-scrolling Carousels** that follow focus
-- **Visual Focus Indicators** with scale animations and borders
-- **My List Functionality** for content management
-
-## 🛠 Technology Stack
-
-- **React Native + Expo** - Cross-platform development
-- **TypeScript** - Type safety and better development experience
-- **@react-navigation/native** - Navigation management
-- **expo-linear-gradient** - Beautiful gradient overlays
-- **expo-image** - Optimized image loading with placeholders
-- **react-native-reanimated** - Smooth animations
-- **react-tv-space-navigation** - TV-specific navigation patterns
-
-## 📱 Platform Support
-
-- ✅ **Android TV** - Full support with Android TV optimizations
-- ✅ **Apple TV (tvOS)** - Native tvOS support
-- ✅ **Mobile** - Works on phones and tablets for development/testing
-- ✅ **Web** - Expo web support for development
-
-
 ## 🌟 Features
 
 ### 📱 **Cross-Platform TV Support**
@@ -66,14 +27,14 @@ A sophisticated React Native TV application for Android TV and tvOS, built with 
 - **RTL/LTR Support** - Full Right-to-Left layout support for Arabic content
 - **Dynamic Direction Switching** - Runtime layout direction changes
 - **Subtitle System** - WebVTT subtitle parsing and rendering
-- **Multi-Language Support** - English and Arabic subtitle tracks
+- **Multi-Language Support (Stashed)** - English and Arabic subtitle tracks
 
 ### 🎨 **Netflix-Style UI/UX**
 - **Hero Section** - Featured content with cinematic backgrounds
 - **Content Carousels** - Horizontal scrolling content rows
 - **Gradient Overlays** - Professional visual hierarchy
 - **Shimmer Loading** - Elegant loading states
-- **Responsive Design** - Optimized for various TV screen sizes
+- **Responsive Design (WIP)** - Optimized for various TV screen sizes
 
 ---
 
@@ -130,7 +91,6 @@ src/
 
 #### **Video & Media**
 - **react-native-video 6.4** - Advanced video playback
-- **expo-av** - Audio/video utilities
 - **WebVTT Parser** - Custom subtitle parsing implementation
 
 #### **UI & Animation**
@@ -186,10 +146,10 @@ Physical Apple TV device
    npm start
    
    # Android TV specific
-   npm run android-tv
+   npm run android
    
    # Apple TV specific (macOS only)
-   npm run ios-tv
+   npm run ios
    ```
 
 4. **Run on devices**
@@ -402,8 +362,6 @@ adb shell input keyevent KEYCODE_DPAD_RIGHT   # Right
 MIT License - see [LICENSE](LICENSE) file for details.
 
 
-<div align="center">
 
-**Built with ❤️ for the TV streaming experience**
+**Built for the TV streaming experience**
 
-</div>
