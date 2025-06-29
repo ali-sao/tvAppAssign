@@ -1,4 +1,4 @@
-# 📺 Thamaneyah Streaming App
+# 📺 Streaming App
 
 A sophisticated React Native TV application for Android TV and tvOS, built with Expo and optimized for TV remote navigation.
 
