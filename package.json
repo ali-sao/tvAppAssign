@@ -3,12 +3,11 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
+    "prepare":"npm install --legacy-peer-deps",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "android-tv": "expo start --android --tv",
-    "ios-tv": "expo start --ios --tv",
     "dev": "expo start --clear",
     "build:android": "expo build:android --type app-bundle",
     "build:ios": "expo build:ios --type archive",
