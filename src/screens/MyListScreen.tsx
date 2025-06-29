@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  Pressable,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -15,34 +17,34 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
 import { theme } from '../constants/theme';
 import { streamingAPI } from '../services/api';
-import { ContinueWatchingItem } from '../types/api';
+import { ContentEntity } from '../types/api';
 import { useDirection } from '../contexts/DirectionContext';
-
+import { FocusableButton } from '../components/common/FocusableButton';
 const { width: screenWidth } = Dimensions.get('window');
 const ITEM_WIDTH = (screenWidth - 120) / 6; // 6 items per row with spacing
 
-type ContinueWatchingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'ContinueWatching'>;
+type MyListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'MyList'>;
 
-interface ContinueWatchingScreenState {
-  items: ContinueWatchingItem[];
+interface MyListScreenState {
+  items: ContentEntity[];
   loading: boolean;
   error: string | null;
   refreshing: boolean;
 }
 
-export const ContinueWatchingScreen: React.FC = () => {
-  const navigation = useNavigation<ContinueWatchingScreenNavigationProp>();
+export const MyListScreen: React.FC = () => {
+  const navigation = useNavigation<MyListScreenNavigationProp>();
   const { isRTL } = useDirection();
   
-  const [state, setState] = useState<ContinueWatchingScreenState>({
+  const [state, setState] = useState<MyListScreenState>({
     items: [],
     loading: true,
     error: null,
     refreshing: false,
   });
 
-  // Fetch continue watching items
-  const fetchContinueWatching = useCallback(async (isRefresh = false) => {
+  // Fetch my list items
+  const fetchMyList = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setState(prev => ({ ...prev, refreshing: true, error: null }));
@@ -50,7 +52,7 @@ export const ContinueWatchingScreen: React.FC = () => {
         setState(prev => ({ ...prev, loading: true, error: null }));
       }
 
-      const response = await streamingAPI.getContinueWatching();
+      const response = await streamingAPI.getMyList();
       
       if (response.success && response.data) {
         setState(prev => ({
@@ -60,69 +62,103 @@ export const ContinueWatchingScreen: React.FC = () => {
           refreshing: false,
           error: null,
         }));
-        console.log(`📺 Loaded ${response.data!.items.length} continue watching items`);
+        console.log(`📋 Loaded ${response.data!.items.length} my list items`);
       } else {
         setState(prev => ({
           ...prev,
           loading: false,
           refreshing: false,
-          error: response.error?.message || 'Failed to load continue watching items',
+          error: response.error?.message || 'Failed to load my list items',
         }));
       }
     } catch (error) {
-      console.error('❌ Failed to fetch continue watching items:', error);
+      console.error('❌ Failed to fetch my list items:', error);
       setState(prev => ({
         ...prev,
         loading: false,
         refreshing: false,
-        error: 'Failed to load continue watching items',
+        error: 'Failed to load my list items',
       }));
     }
   }, []);
 
   // Load data on mount
   useEffect(() => {
-    fetchContinueWatching(true);
-  }, [fetchContinueWatching]);
+    fetchMyList();
+  }, [fetchMyList]);
 
   // Handle item press
-  const handleItemPress = useCallback((item: ContinueWatchingItem) => {
-    console.log(`📺 Playing content: ${item.title} from ${Math.floor(item.progress.progressInSeconds)}s`);
+  const handleItemPress = useCallback((item: ContentEntity) => {
+    console.log(`📺 Playing content: ${item.title}`);
     navigation.navigate('Player', {
       contentId: item.id,
       contentTitle: item.title,
-      resumeTime: item.progress.progressInSeconds,
+      resumeTime: 0, // Start from beginning, could get from continue watching API
     });
   }, [navigation]);
 
-  // Handle remove from continue watching
-  const handleRemoveItem = useCallback(async (item: ContinueWatchingItem) => {
-    // This would typically call an API to remove the item
-    console.log(`🗑️ Remove ${item.title} from continue watching`);
-    // For now, just refresh the list
-    await fetchContinueWatching(true);
-  }, [fetchContinueWatching]);
+  // Handle remove from my list
+  const handleRemoveItem = useCallback(async (item: ContentEntity) => {
+    Alert.alert(
+      'Remove from My List',
+      `Are you sure you want to remove "${item.title}" from your list?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log(`🗑️ Removing ${item.title} from my list`);
+              const response = await streamingAPI.removeFromMyList(item.id);
+              
+              if (response.success) {
+                // Remove item from local state for immediate feedback
+                setState(prev => ({
+                  ...prev,
+                  items: prev.items.filter(i => i.id !== item.id),
+                }));
+                console.log(`✅ Successfully removed ${item.title} from my list`);
+              } else {
+                Alert.alert('Error', 'Failed to remove item from your list');
+              }
+            } catch (error) {
+              console.error('❌ Failed to remove item from my list:', error);
+              Alert.alert('Error', 'Failed to remove item from your list');
+            }
+          },
+        },
+      ]
+    );
+  }, []);
 
-  // Format progress percentage
-  const getProgressPercentage = (item: ContinueWatchingItem): number => {
-    return (item.progress.progressInSeconds / item.durationInSeconds) * 100;
-  };
-
-  // Format time remaining
-  const getTimeRemaining = (item: ContinueWatchingItem): string => {
-    const remaining = item.durationInSeconds - item.progress.progressInSeconds;
-    const hours = Math.floor(remaining / 3600);
-    const minutes = Math.floor((remaining % 3600) / 60);
+  // Format duration
+  const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
     
     if (hours > 0) {
-      return `${hours}h ${minutes}m left`;
+      return `${hours}h ${minutes}m`;
     }
-    return `${minutes}m left`;
+    return `${minutes}m`;
   };
 
-  // Render continue watching item
-  const renderItem = ({ item, index }: { item: ContinueWatchingItem; index: number }) => (
+  // Render my list item
+  const renderItem = ({ item, index }: { item: ContentEntity; index: number }) => (
     <View style={styles.itemContainer}>
+         {/* Remove Button */}
+      <FocusableButton
+        title="Remove"
+        variant="outline"
+        size="small"
+        // icon={<Icon name="close-circle" size={24} color="rgba(255, 255, 255, 0.7)" />}
+        style={styles.removeButton}
+        onPress={() => handleRemoveItem(item)}
+      />
+
       <TouchableOpacity
         style={styles.itemTouchable}
         onPress={() => handleItemPress(item)}
@@ -131,21 +167,16 @@ export const ContinueWatchingScreen: React.FC = () => {
         <View style={styles.imageContainer}>
           <Image source={{ uri: item.posterImage }} style={styles.itemImage} />
           
-          {/* Progress Overlay */}
-          <View style={styles.progressOverlay}>
-            <View style={styles.progressBarContainer}>
-              <View
-                style={[
-                  styles.progressBar,
-                  { width: `${getProgressPercentage(item)}%` }
-                ]}
-              />
-            </View>
-          </View>
-          
           {/* Play Icon */}
           <View style={styles.playIconContainer}>
             <Icon name="play-circle" size={48} color="rgba(255, 255, 255, 0.9)" />
+          </View>
+          
+          {/* Content Type Badge */}
+          <View style={styles.typeBadge}>
+            <Text style={styles.typeText}>
+              {item.type.toUpperCase()}
+            </Text>
           </View>
         </View>
         
@@ -153,8 +184,8 @@ export const ContinueWatchingScreen: React.FC = () => {
           <Text style={styles.itemTitle} numberOfLines={2}>
             {item.title}
           </Text>
-          <Text style={styles.itemProgress}>
-            {getTimeRemaining(item)}
+          <Text style={styles.itemMeta}>
+            {item.contentRating} • {formatDuration(item.durationInSeconds)}
           </Text>
         </View>
       </TouchableOpacity>
@@ -174,10 +205,10 @@ export const ContinueWatchingScreen: React.FC = () => {
           color="#fff" 
         />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>Continue Watching</Text>
+      <Text style={styles.headerTitle}>My List</Text>
       <TouchableOpacity
         style={styles.refreshButton}
-        onPress={() => fetchContinueWatching(true)}
+        onPress={() => fetchMyList(true)}
       >
         <Icon name="refresh" size={24} color="#fff" />
       </TouchableOpacity>
@@ -187,10 +218,10 @@ export const ContinueWatchingScreen: React.FC = () => {
   // Render empty state
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Icon name="play-circle-outline" size={64} color="rgba(255, 255, 255, 0.3)" />
-      <Text style={styles.emptyTitle}>No items to continue watching</Text>
+      <Icon name="heart-outline" size={64} color="rgba(255, 255, 255, 0.3)" />
+      <Text style={styles.emptyTitle}>Your list is empty</Text>
       <Text style={styles.emptySubtitle}>
-        Start watching something and it will appear here
+        Add movies and shows you want to watch to your list
       </Text>
     </View>
   );
@@ -203,7 +234,7 @@ export const ContinueWatchingScreen: React.FC = () => {
       <Text style={styles.errorSubtitle}>{state.error}</Text>
       <TouchableOpacity
         style={styles.retryButton}
-        onPress={() => fetchContinueWatching()}
+        onPress={() => fetchMyList()}
       >
         <Text style={styles.retryButtonText}>Try Again</Text>
       </TouchableOpacity>
@@ -217,7 +248,7 @@ export const ContinueWatchingScreen: React.FC = () => {
       {state.loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Loading continue watching...</Text>
+          <Text style={styles.loadingText}>Loading your list...</Text>
         </View>
       ) : state.error ? (
         renderErrorState()
@@ -232,7 +263,7 @@ export const ContinueWatchingScreen: React.FC = () => {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshing={state.refreshing}
-          onRefresh={() => fetchContinueWatching(true)}
+          onRefresh={() => fetchMyList(true)}
         />
       )}
     </View>
@@ -344,26 +375,25 @@ const styles = StyleSheet.create({
     height: ITEM_WIDTH * 1.5, // 3:2 aspect ratio
     backgroundColor: '#333',
   },
-  progressOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-  },
-  progressBarContainer: {
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: theme.colors.primary,
-  },
   playIconContainer: {
     position: 'absolute',
     top: '50%',
     left: '50%',
     transform: [{ translateX: -24 }, { translateY: -24 }],
+  },
+  typeBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  typeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   itemInfo: {
     paddingTop: 12,
@@ -374,16 +404,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 4,
   },
-  itemProgress: {
+  itemMeta: {
     color: '#ccc',
     fontSize: 14,
   },
   removeButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: 8,
+    marginBottom: 8,
+    // padding: 4,
   },
 }); 

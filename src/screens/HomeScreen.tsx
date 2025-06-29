@@ -64,20 +64,33 @@ export const HomeScreen: React.FC = () => {
   const handleHeroMyListPress = useCallback(async () => {
     if (!heroContent) return;
 
-    const isInList = await myListOps.checkInMyList(heroContent.id);
-    
-    if (isInList) {
-      const success = await myListOps.removeFromMyList(heroContent.id);
-      if (success) {
-        myList.refetch();
-        Alert.alert('Removed from My List', `${heroContent.title} has been removed from your list.`);
+    try {
+      const isInList = await myListOps.checkInMyList(heroContent.id);
+      
+      if (isInList) {
+        const success = await myListOps.removeFromMyList(heroContent.id);
+        if (success) {
+          setIsInMyList(false);
+          myList.refetch();
+          console.log(`➖ Removed "${heroContent.title}" from My List`);
+          // You could add a toast notification here instead of Alert
+        } else {
+          Alert.alert('Error', 'Failed to remove from your list. Please try again.');
+        }
+      } else {
+        const success = await myListOps.addToMyList(heroContent.id);
+        if (success) {
+          setIsInMyList(true);
+          myList.refetch();
+          console.log(`➕ Added "${heroContent.title}" to My List`);
+          // You could add a toast notification here instead of Alert
+        } else {
+          Alert.alert('Error', 'Failed to add to your list. Please try again.');
+        }
       }
-    } else {
-      const success = await myListOps.addToMyList(heroContent.id);
-      if (success) {
-        myList.refetch();
-        Alert.alert('Added to My List', `${heroContent.title} has been added to your list.`);
-      }
+    } catch (error) {
+      console.error('❌ My List operation failed:', error);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
     }
   }, [heroContent, myListOps, myList]);
 
@@ -117,8 +130,8 @@ export const HomeScreen: React.FC = () => {
   }, []);
 
   const handleMyListPress = useCallback(() => {
-    Alert.alert('My List', 'Navigate to my list'); // TODO: Navigate to MyList screen
-  }, []);
+    navigation.navigate('MyList');
+  }, [navigation]);
 
   const handleContinueWatchingPress = useCallback(() => {
     navigation.navigate('ContinueWatching');

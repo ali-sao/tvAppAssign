@@ -5,6 +5,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { VideoPlayerScreen } from '../screens/VideoPlayerScreen';
 import { ProfileSettingsScreen } from '../screens/ProfileSettingsScreen';
 import { ContinueWatchingScreen } from '../screens/ContinueWatchingScreen';
+import { MyListScreen } from '../screens/MyListScreen';
 import { RootStackParamList } from '../types';
 import { theme } from '../constants/theme';
 
@@ -80,6 +81,13 @@ export const AppNavigator: React.FC = () => {
           component={ContinueWatchingScreen}
           options={{
             title: 'Continue Watching',
+          }}
+        />
+        <Stack.Screen 
+          name="MyList" 
+          component={MyListScreen}
+          options={{
+            title: 'My List',
           }}
         />
       </Stack.Navigator>
