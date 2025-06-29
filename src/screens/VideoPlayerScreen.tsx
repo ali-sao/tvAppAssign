@@ -152,7 +152,7 @@ export const VideoPlayerScreen: React.FC = () => {
       console.log('📺 Auto-starting playback (no continue watching modal)');
       setPlayerState(prev => ({ ...prev, paused: false }));
     }
-  }, [playerState.loading, playerState.showContinueWatchingModal, playerState.paused]);
+  }, [playerState.loading, playerState.showContinueWatchingModal]); // Removed playerState.paused from dependencies
 
   // Handle continue watching choice
   const handleContinueWatching = useCallback((shouldContinue: boolean) => {
